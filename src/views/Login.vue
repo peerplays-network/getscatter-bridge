@@ -6,28 +6,23 @@
 
 		<section class="authentication">
 			<section>
-				<figure class="logo scatter-logologo"></figure>
-				<figure class="title">Embark on an adventure</figure>
-				<figure class="text">
-					and join the millions of people experiencing the modern age revolution that is redefining how we use the internet.
-				</figure>
+				<img class="logo" src="@/assets/scatter.svg" />
 
 				<section class="inputs" v-if="ready && !working">
 					<section v-if="isNewScatter">
 						<Button class="big" primary="1" text="Create new Scatter" @click.native="login" />
-						<Button text="Load from Backup" @click.native="loadBackup" />
+						<section class="login-with">
+							<span class="label">You can also load a</span><span class="option" @click="loadBackup">full backup file</span>&nbsp;<span class="label">that you have saved.</span>
+						</section>
 					</section>
 
 					<section v-else>
 						<Input v-on:enter="login" :text="password" v-on:changed="x => password = x" v-if="asWallet" type="password" placeholder="Enter your password" />
-						<!--<Input v-on:enter="login" v-if="asWallet" type="password" placeholder="Confirm password" />-->
 						<Button class="big" primary="1" text="Login" @click.native="login" />
 
-
-						<!--<section class="login-with">-->
-							<!--<span class="label">Or try it out with a</span>-->
-							<!--<span class="option" @click="loginTest"><u>demo account</u></span>-->
-						<!--</section>-->
+						<section class="login-with">
+							<span class="label">You can also</span> <span class="option" @click="reset">reset your account</span>&nbsp;<span class="label">to start over</span>
+						</section>
 					</section>
 				</section>
 
@@ -58,6 +53,7 @@
 	import Keypair from '@walletpack/core/models/Keypair'
 	import KeyPairService from '@walletpack/core/services/secure/KeyPairService'
 	import AccountService from '@walletpack/core/services/blockchain/AccountService'
+	import SingularAccounts from "../services/utility/SingularAccounts";
 
 	let gauth;
 
@@ -72,6 +68,7 @@
 		}},
 		mounted(){
 			typeof window.wallet === 'undefined' ? this.initAsBridge() : this.initAsWallet();
+
 		},
 		methods:{
 			async initAsWallet(){
@@ -85,21 +82,13 @@
 				await gauth.init();
 				this.ready = true;
 			},
-			loginSuccess(){
+			async loginSuccess(){
 				Loader.set(true);
-				this.$router.push({name:this.RouteNames.Dashboard})
+				setTimeout(async () => {
+					if(!SingletonService.isInit()) await SingletonService.init();
+					this.$router.push({name:this.RouteNames.Dashboard})
+				}, 50);
 			},
-			// async loginTest(){
-			// 	// TODO: Can login with test, and then social and it still works?
-			// 	// TODO: It's possible the entropy isn't being recreated
-			// 	if(this.working) return;
-			// 	this.working = true;
-			// 	setTimeout(async () => {
-			// 		await BridgeWallet.register('testingtestingtestingtesting', 'testingtestingtestingtesting', 'tester@testing.com');
-			// 		// KYCService.setKycHash(true);
-			// 		this.loginSuccess();
-			// 	}, 50);
-			// },
 			async login(){
 				if(this.working) return;
 				this.working = true;
@@ -118,11 +107,15 @@
 						this.working = false;
 					}
 				} else {
-					PopupService.push(Popups.getPassword(async password => {
-						if(!password) return this.working = false;
-						await this[UIActions.CREATE_SCATTER](password);
-						this.loginSuccess();
-					}, true))
+					PopupService.push(Popups.showTerms(async accepted => {
+						if(!accepted) return this.working = false;
+						PopupService.push(Popups.getPassword(async password => {
+							if(!password) return this.working = false;
+							await this[UIActions.CREATE_SCATTER](password);
+							this.loginSuccess();
+						}, true))
+					}))
+
 				}
 
 
@@ -140,7 +133,7 @@
 				const password = await new Promise(resolve => {
 					PopupService.push(Popups.getPassword(password => {
 						resolve(password);
-					}, /* TODO: CONFIRM PASSWORD */ isNew))
+					}, isNew))
 				});
 
 				if(!password) return this.working = false;
@@ -206,7 +199,6 @@
 						decrypted.keychain = await window.wallet.decrypt(decrypted.keychain);
 						decrypted.settings.backupLocation = '';
 						this.working = false;
-						// TODO: ADD TERMS! -----------------------------------------------------------------
 						PopupService.push(Popups.showTerms(async accepted => {
 							if(!accepted) {
 								window.wallet.lock();
@@ -261,8 +253,18 @@
 							}
 							scatter.onboarded = true;
 							await this[Actions.SET_SCATTER](scatter);
-							await Promise.all(keypairs.map(keypair => {
-								return AccountService.importAllAccounts(keypair);
+							await Promise.all(keypairs.map(async keypair => {
+								const networks = scatter.settings.networks
+									.filter(x => x.blockchain === keypair.blockchains[0])
+									.filter(x => !SingularAccounts.accounts([x]).length);
+								await Promise.all(networks.map(async network => {
+									const accounts = await AccountService.getAccountsFor(keypair, network);
+									if(accounts.length){
+										await AccountService.addAccount(accounts[0]);
+										SingularAccounts.setPredefinedAccount(network, accounts[0]);
+									}
+								}));
+								// return AccountService.importAllAccounts(keypair);
 							}));
 							await window.wallet.lock();
 							window.wallet.utility.reload()
@@ -297,6 +299,10 @@
 					}))
 				})
 			},
+			reset(){
+
+				PopupService.push(Popups.resetScatter())
+			},
 			...mapActions([
 				Actions.LOAD_SCATTER,
 				Actions.SET_SCATTER,
@@ -316,42 +322,52 @@
 
 	.login {
 		height:100vh;
+		width:100vw;
 		display:flex;
 		overflow: hidden;
+		align-items: center;
+		justify-content: center;
 
 		.authentication {
-			background:rgba(255,255,255,0.99);
-			background: linear-gradient(-65deg, rgba(255,255,255,0.81) 0%, rgba(255,255,255,0.99) 60%);
-			max-width:600px;
-			width:100%;
-			height:100vh;
-			padding:80px;
-
+			background:rgba(255,255,255,1);
+			padding:80px 120px;
+			margin:0 auto;
+			text-align:center;
+			border-radius:4px;
 			display:flex;
-			align-items: center;
+			justify-content: center;
+			align-items:center;
+			transition: all 1s ease-in-out;
+			transition-property: opacity;
+			width: 100%;
+			height: 100%;
 
-			transition: all 1s ease;
-			transition-property: padding;
+			.app-title {
+				font-size:$font-size-large;
+				font-weight:bold;
+				margin:1rem 0 0 0;
+			}
 
 			.inputs {
-				max-width:300px;
-				margin-top:50px;
+				width:100%;
+				margin-top:1rem;
+				display:inline-block;
+				font-size: $font-size-medium;
+				max-width:400px;
 			}
 
 			.loading {
 				height:162px;
 				display:flex;
 				align-items: center;
+				justify-content: center;
 				font-size: 48px;
 				color:$grey;
 			}
 
 			.logo {
-				color:$blue;
-				font-size: 50px;
-				margin-left:-15px;
-				position: absolute;
-				top:60px;
+				width:250px;
+				margin-bottom:20px;
 			}
 
 			.title {
@@ -362,7 +378,7 @@
 			}
 
 			.text {
-				font-size: $font-size-standard;
+				font-size: $font-size-medium;
 				font-weight: bold;
 				color:$grey;
 			}
@@ -372,7 +388,7 @@
 				margin-bottom:10px;
 
 				&.big {
-					height:80px;
+					height:60px;
 					font-size: $font-size-medium;
 				}
 			}
@@ -391,6 +407,7 @@
 					font-weight: bold;
 					margin-left:4px;
 					color:$blue;
+					text-decoration: underline;
 				}
 			}
 		}
@@ -404,11 +421,13 @@
 			z-index:-1;
 			height:100vh;
 			flex:1;
+			background: #00a8ff;
 
 			img {
 				width:100%;
 				height:100%;
 				object-fit: cover;
+				opacity: 0;
 			}
 		}
 
@@ -427,7 +446,6 @@
 		.login {
 			.authentication {
 				background:$dark;
-				background: linear-gradient(-65deg, rgba($dark, 0.6) 0%, $dark 60%);
 
 				.title {
 					color:#fff;

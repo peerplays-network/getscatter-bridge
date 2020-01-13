@@ -1,13 +1,14 @@
 <template>
-	<section class="cta-cc">
-		<GraphicCard plus="0" />
+	<section class="dash-action-template">
+		<section class="image">
+			<img src="assets/onboarding_get_started.jpg" />
+		</section>
 
 		<section class="details">
-			<figure class="title">Add your credit card for easier payments</figure>
-			<figure class="text">
-				Add a credit card to Scatter and open up direct token purchases and third party application integration.
-			</figure>
-			<Button @click.native="addCreditCard" text="Add a Credit Card" primary="1"/>
+			<figure class="above-title">UPGRADE YOURSELF</figure>
+			<figure class="title">Link a Credit Card</figure>
+			<figure class="text">Credit cards can be used to load up accounts and also interact with third party applications.</figure>
+			<Button @click.native="addCreditCard" primary="1" text="I'm ready!"/>
 		</section>
 	</section>
 </template>
@@ -29,7 +30,7 @@
 		methods:{
 			addCreditCard(){
 				PopupService.push(Popups.addCreditCard(done => {
-
+					if(done) this.$router.push({name:this.RouteNames.Wallet, query:{type:'card'}});
 				}))
 			}
 		}
@@ -39,61 +40,6 @@
 <style scoped lang="scss">
 	@import "../../styles/variables";
 
-	.cta-cc {
-		overflow: visible;
-
-		.title {
-			font-size: $font-size-large;
-			font-weight:bold;
-		    font-family: 'Poppins', sans-serif;
-		}
-
-		.text {
-			font-size: $font-size-standard;
-		    font-family: 'Poppins', sans-serif;
-		    opacity:0.4;
-			margin-top:4px;
-			margin-bottom:20px;
-		}
-	}
-
-	.blue-steel {
-		.cta-cc {
-			.card {
-				.plus {
-					border:2px solid $dark;
-				}
-			}
-		}
-	}
-
-	.mobile {
-		.cta-cc {
-			overflow: hidden;
-			text-align:center;
-
-			.card {
-				text-align:center;
-				float:none;
-				margin:0 auto;
-			}
-
-			.title {
-				display:inline-block;
-				width:100%;
-				margin-top:20px;
-			}
-
-			.text {
-				display:inline-block;
-				width:100%;
-			}
-
-			button {
-				display:inline-block;
-			}
-		}
-	}
 
 
 </style>

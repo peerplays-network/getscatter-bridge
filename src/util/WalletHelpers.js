@@ -8,6 +8,10 @@ import AppsService from '@walletpack/core/services/apps/AppsService'
 import KeyPairService from '@walletpack/core/services/secure/KeyPairService'
 import PopupService from "../services/utility/PopupService";
 import WindowService from "../services/utility/WindowService";
+import Network from '@walletpack/core/models/Network';
+import SingularAccounts from "../services/utility/SingularAccounts";
+import Popups from "./Popups";
+import Error from '@walletpack/core/models/errors/Error'
 
 let walletType;
 export default class WalletHelpers {
@@ -24,13 +28,41 @@ export default class WalletHelpers {
 		}
 
 		const eventListener = async (type, data) => {
+			if(type === 'api_response'){
+				const request = data.request;
+				const result = data.result.result || data.result;
+
+				// User logged into an application
+				if(request.type === 'getOrRequestIdentity' && result.hasOwnProperty('accounts')){
+					// TODO: Prompt user for rating
+					// const app = request.appData || AppsService.getAppData(request.payload.origin)
+					// PopupService.push(Popups.viewAppRatings(app));
+				}
+			}
+
 			if(type === 'popout') {
 				const popup =  new Popup(PopupDisplayTypes.POP_OUT, new PopupData(data.type, data));
 
-				if(!AppsService.appIsInLocalData(popup.data.props.payload.origin)) {
-					await AppsService.getApps([popup.data.props.payload.origin]);
-				}
+				// if(!AppsService.appIsInLocalData(popup.data.props.payload.origin)) {
+				// 	await AppsService.getApps([popup.data.props.payload.origin]);
+				// }
 				popup.data.props.appData = AppsService.getAppData(popup.data.props.payload.origin);
+				popup.dimensions = {width:360, height:650};
+				popup.currencies = store.state.currencies;
+
+				if(data.type === 'getOrRequestIdentity'){
+					const networks = data.payload.fields.accounts.map(x => store.state.scatter.settings.networks.find(n => n.unique() === Network.fromJson(x).unique()));
+					if(networks.length) {
+						const accounts = SingularAccounts.accounts(networks).filter(x => !!x);
+						if (!accounts.length) {
+							window.wallet.utility.flashWindow();
+							const created = await new Promise(r => PopupService.push(Popups.noAccount(networks[0], x => r(x))));
+							// If the user decided not to create an account, then we will simply fail out.
+							if (!created) return {original: data, result: null};
+							// Otherwise the user may now continue to log in.
+						}
+					}
+				}
 
 				return await WindowService.openPopOut(popup);
 			}
@@ -81,8 +113,7 @@ export default class WalletHelpers {
 
 					let popup;
 					if(keypair.external){
-						// TODO: Need to re-implement!
-						popup = Popup.checkHardwareWalletScreen();
+						popup = Popups.checkHardwareWalletScreen();
 						PopupService.push(popup);
 					}
 
@@ -91,7 +122,7 @@ export default class WalletHelpers {
 					if(popup) PopupService.remove(popup);
 
 					if(result && typeof result === 'object' && result.hasOwnProperty('error')){
-						PopupService.push(Popup.snackbar(result.error))
+						PopupService.push(Popups.snackbar(result.error))
 					}
 
 					return result;
@@ -105,5 +136,7 @@ export default class WalletHelpers {
 
 		return true;
 	}
+
+
 
 }

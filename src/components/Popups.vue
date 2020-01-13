@@ -7,23 +7,38 @@
 				<section class="overlay">
 					<figure class="bg-holder">
 						<section class="pop-in-over">
-							<figure class="bg" v-if="i === popIns.length-1"></figure>
+							<figure @click="close()" class="bg" v-if="i === popIns.length-1"></figure>
 							<AddCreditCard          class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'addCreditCard'" />
 							<CreateEosAccount       class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'createEosAccount'" />
+							<NoAccount              class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'noAccount'" />
 							<Exchange               class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'exchange'" />
+							<Savings                class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'savings'" />
 							<Transfer               class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'transfer'" />
+							<TransferStable         class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'transferStable'" />
 							<AddContact             class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'addContact'" />
 							<BuyWithCard            class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'buyTokens'" />
 							<EnterPassword          class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'getPassword'" />
 							<TwoFactor              class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'twoFactorAuth'" />
+							<CheckHardware          class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'checkHardwareWalletScreen'" />
+							<ViewAppRatings         class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'viewAppRatings'" />
+							<ImportKeys             class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'importKeys'" />
 							<ScanQR                 class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'scanQR'" />
 							<EnterSecurityCode      class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'enterSecurityCode'" />
+							<Stabilize              class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'stabilize'" />
+							<DiscardTokens          class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'discardTokens'" />
 							<EditNetworkAccount     class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'editNetworkAccount'" />
+							<Receive                class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'receive'" />
+							<AddOrEditNetwork       class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'addOrEditNetwork'" />
 							<ExportPrivateKey       class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'exportPrivateKey'" />
 							<ShowTerms              class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'showTerms'" />
+							<SelectNetwork          class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'selectNetwork'" />
 							<MoonpayCode            class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'moonpayCode'" />
+							<Moonpay                class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'moonpay'" />
 							<AllowRestrictedApps    class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'allowRestrictedApps'" />
 							<AllowPopups            class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'allowPopups'" />
+							<TransactionSuccess     class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'transactionSuccess'" />
+							<ResetScatter           class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'resetScatter'" />
+							<DeleteKeypair          class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'confirmDeleteKeypair'" />
 						</section>
 					</figure>
 				</section>
@@ -54,21 +69,36 @@
 	export default {
 		components:{
 			AllowPopups:() => import('../components/popups/AllowPopups'),
+			AddOrEditNetwork:() => import('../components/popups/AddOrEditNetwork'),
 			AddCreditCard:() => import('../components/popups/AddCreditCard'),
 			CreateEosAccount:() => import('../components/popups/CreateEosAccount'),
+			NoAccount:() => import('../components/popups/NoAccount'),
 			Exchange:() => import('../components/popups/Exchange'),
+			Savings:() => import('../components/popups/Savings'),
+			DiscardTokens:() => import('../components/popups/DiscardTokens'),
 			Transfer:() => import('../components/popups/Transfer'),
+			TransferStable:() => import('../components/popups/TransferStable'),
 			AddContact:() => import('../components/popups/AddContact'),
 			BuyWithCard:() => import('../components/popups/BuyWithCard'),
+			ImportKeys:() => import('../components/popups/ImportKeys'),
 			EnterPassword:() => import('../components/popups/EnterPassword'),
 			TwoFactor:() => import('../components/popups/TwoFactor'),
 			ScanQR:() => import('../components/popups/ScanQR'),
 			ExportPrivateKey:() => import('../components/popups/ExportPrivateKey'),
 			EnterSecurityCode:() => import('../components/popups/EnterSecurityCode'),
 			EditNetworkAccount:() => import('../components/popups/EditNetworkAccount'),
+			TransactionSuccess:() => import('../components/popups/TransactionSuccess'),
+			SelectNetwork:() => import('../components/popups/SelectNetwork'),
+			CheckHardware:() => import('../components/popups/CheckHardware'),
+			ViewAppRatings:() => import('../components/popups/ViewAppRatings'),
+			Receive:() => import('../components/popups/Receive'),
+			ResetScatter:() => import('../components/popups/ResetScatter'),
+			Stabilize:() => import('../components/popups/Stabilize'),
+			DeleteKeypair:() => import('../components/popups/DeleteKeypair'),
 			ShowTerms:() => import('../components/popups/ShowTerms'),
 			MoonpayCode:() => import('../components/popups/special/MoonpayCode'),
 			AllowRestrictedApps:() => import('../components/popups/special/AllowRestrictedApps'),
+			Moonpay:() => import('../views/popouts/widgets/Moonpay'),
 			Snackbar,
 		},
 		data(){ return {
@@ -100,6 +130,10 @@
 					if(popup.hasOwnProperty('data') && typeof popup.data.callback === 'function') popup.data.callback(result);
 					this[Actions.RELEASE_POPUP](popup);
 				}
+			},
+
+			close(){
+				this.closer(this.nextPopIn)(null);
 			},
 
 			...mapActions([
@@ -187,7 +221,7 @@
 			bottom:0;
 			left:0;
 			right:0;
-			background: rgba(255,255,255,0.9);
+			background: rgba(0, 0, 0, 0.73);
 			z-index: -1;
 		}
 
@@ -207,8 +241,6 @@
 		flex-direction: column;
 		overflow:hidden;
 		text-align:center;
-
-		box-shadow: 0 40px 144px 0 rgba(0, 168, 255, 0.25), 0 10px 44px 0 rgba(0, 168, 255, 0.16);
 
 		margin-top:200%;
 
@@ -299,6 +331,18 @@
 
 			display:flex;
 			justify-content: space-between;
+
+			button {
+				flex:1;
+
+				&:first-child {
+					margin-right:5px;
+				}
+
+				&:last-child {
+					margin-left:5px;
+				}
+			}
 		}
 
 	}
@@ -306,8 +350,6 @@
 	.blue-steel {
 		.popin {
 			background:$dark;
-
-			box-shadow: -20px 40px 244px 0 rgba(0, 168, 255, 0.5), 0 10px 44px 0 rgba(0, 168, 255, 0.4);
 
 			.popup-head {
 				border-bottom:1px solid rgba($blue, 0.24);

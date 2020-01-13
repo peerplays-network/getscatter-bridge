@@ -4,11 +4,13 @@
 
 		<section class="switcher">
 			<figure class="type" @click="state = STATES.EXPLORE" :class="{'active':state === STATES.EXPLORE}">Explore</figure>
-			<figure class="type" @click="state = STATES.MANAGE" :class="{'active':state === STATES.MANAGE}">Manage</figure>
+			<figure v-if="linkedApps.length" class="type" @click="state = STATES.MANAGE" :class="{'active':state === STATES.MANAGE}">Manage</figure>
 		</section>
 
-		<Explore class="explore panel-pad" v-if="state === STATES.EXPLORE" />
-		<Manage class="explore panel-pad" v-if="state === STATES.MANAGE" />
+		<transition name="fade">
+			<Explore class="explore panel-pad" v-if="state === STATES.EXPLORE" />
+			<Manage class="explore panel-pad" v-if="state === STATES.MANAGE" />
+		</transition>
 	</section>
 </template>
 
@@ -45,16 +47,8 @@
 				'swiped',
 				'isMobile'
 			]),
-			categories(){
-				let cats = AppsService.categories();
-				if(this.showRestricted) return cats;
-				cats = cats.filter(x => !this.showRestricted && x.toLowerCase() !== 'gambling');
-				cats.push('Restricted');
-				return cats;
-			},
-			apps(){
-				return AppsService.appsByCategory(this.selectedCategory)
-					.filter(x => !this.showRestricted && x.type.toLowerCase() !== 'gambling');
+			linkedApps(){
+				return AppsService.linkedApps();
 			}
 		},
 		beforeMount(){
@@ -64,9 +58,6 @@
 				}
 			}, 1);
 		},
-		// beforeDestroy(){
-		// 	AppsService.getApps({include:AppsService.linkedApps().map(x => x.applink)})
-		// },
 		watch:{
 			['swiped'](){
 				if(this.swiped !== null){
@@ -87,7 +78,6 @@
 	}
 
 	.featured {
-		height:400px;
 		overflow: hidden;
 
 		transition:all 0.5s ease;
@@ -95,19 +85,15 @@
 		transition-delay: 0s;
 
 		&.manage {
-			height: $topactions;
-			transition-delay: 0.3s;
+			height: $topactions + 60px;
 		}
 	}
 
 	.switcher {
 		border-top:1px solid rgba($blue, 0.12);
-	}
-
-	.mobile {
-		.switcher {
-			margin-top:0;
-		}
+		margin-top:-50px;
+		border-top-left-radius:50px;
+		border-top-right-radius:50px;
 	}
 
 </style>

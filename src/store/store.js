@@ -4,6 +4,7 @@ import Vuex from 'vuex';
 import {mutations} from './mutations';
 import {actions} from './actions';
 import {PopupDisplayTypes} from "../models/popups/Popup";
+import PluginRepository from '@walletpack/core/plugins/PluginRepository';
 
 Vue.use(Vuex);
 
@@ -18,6 +19,7 @@ export const state = {
 	balances:{},
 	prices:{},
 	priceData:{},
+	currencies:{},
 	// ---------------------------------
 	tokenMetas:{},
 
@@ -44,6 +46,11 @@ export const state = {
 	ports:null,
 
 	showRestricted:window.localStorage.getItem('restrictedApps') || false,
+
+	untouchables:[],
+	exchangeables:[],
+
+	featureFlags:{},
 };
 
 export const getters = {
@@ -58,6 +65,9 @@ export const getters = {
 	snackbars:state =>      state.popups.filter(x => x.displayType === PopupDisplayTypes.SNACKBAR) || [],
 
 	identity:state =>       state.scatter.keychain.identities[0],
+
+	explorers:state =>      state.scatter.settings.explorers || PluginRepository.defaultExplorers(),
+	avatars:state =>        state.scatter.keychain.avatars || {},
 };
 
 const proxyHandler = {

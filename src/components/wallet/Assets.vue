@@ -1,94 +1,163 @@
 <template>
-	<section class="assets limiter panel-pad">
-		<section class="action-bar">
-			<section class="tab-info">
-				<figure class="title">Your Assets</figure>
-				<figure class="description">A comprehensive list of all of your assets</figure>
-			</section>
-			<section class="actions">
-				<Button primary="1" text="Receive" />
+	<section class="assets">
+
+		<section class="hero-panel">
+			<figure class="corners"></figure>
+
+			<section class="pie-chart">
+				<canvas ref="pie" class="pie"></canvas>
+				<section class="overlay" v-if="!loadingBalances">
+					<figure class="balance">{{currency}}{{totalBalance}}</figure>
+					<figure class="text">in {{systemTokens.length + stableCoins.length}} tokens</figure>
+				</section>
+				<section class="overlay" v-if="loadingBalances">
+					<figure class="loading">
+						<i class="fa fa-spinner animate-spin"></i>
+					</figure>
+				</section>
 			</section>
 		</section>
 
-		<SearchBar :options="filters"
-		           v-on:terms="x => terms = x"
-		           v-on:selected="x => blockchainFilter = x" />
+		<slot></slot>
 
-		<section class="token-list">
-
-
-			<section class="token" v-if="!hasEosAccount(eosMainnet)">
-				<section class="left">
-					<SymbolBall :token="eosMainnet.systemToken()" />
-					<section class="basic-info">
-						<figure class="name">EOS</figure>
-						<figure class="price">You don't have an account for {{eosMainnet.name}} yet.</figure>
-					</section>
-				</section>
-				<section class="right">
-					<section class="actions">
-						<Button text="Setup" @click.native="createEosAccount" />
-					</section>
-				</section>
-			</section>
-
-
-			<section class="token" v-for="token in tokens.slice(0, page*pageLength)">
-				<section class="left">
-					<SymbolBall :token="token" />
-					<section class="basic-info">
-						<figure class="token-network" v-if="hasMoreThanOneNetwork(token.network())">{{token.network().name}}</figure>
-						<figure class="name">{{token.symbol}}</figure>
-						<figure class="price" v-if="token.fiatPrice(false) > 0">{{currency}}{{formatNumber(token.fiatPrice(false))}}</figure>
-					</section>
-				</section>
-				<section class="right">
-					<section class="balance" v-if="token.fiatBalance(false)">{{currency}}{{formatNumber(token.fiatBalance(false))}}</section>
-					<section class="balance" :class="{'alternate':token.fiatBalance(false)}">{{formatNumber(token.amount)}} {{token.symbol}}</section>
+		<section class="limiter panel-pad">
+			<section class="action-bar">
+				<section class="tab-info">
+					<figure class="title">Welcome to your wallet</figure>
+					<figure class="description">This list shows your funds and application-based tokens.</figure>
 				</section>
 				<section class="actions">
-					<!--<Button v-if="canBuy(token)" @click.native="buy(token)" :text="'Buy'" />-->
-					<Button v-if="canConvert(token)" @click.native="exchange(token)" :text="'Convert'" />
-					<Button primary="1" @click.native="transfer(token)" :text="'Send'" />
+					<!--<Button icon="far fa-hand-holding-usd" @click.native="receive()" text="request" />-->
+					<Button icon="far fa-inbox-in" @click.native="receive()" text="Receive" />
 				</section>
 			</section>
-		</section>
 
-		<section v-if="page*pageLength < tokens.length">
-			<br>
-			<br>
-			<br>
 			<section class="flex">
-				<Button text="Show More" @click.native="page++" />
+				<SearchBar v-on:terms="x => terms = x" placeholder="Search your assets" />
+				<!--<SearchBar :options="filters" v-on:terms="x => terms = x" v-on:selected="x => blockchainFilter = x" />-->
+				<Button v-if="savingsEnabled" :icon="!showingUntouchables ? 'fal fa-piggy-bank' : 'fal fa-sack'"
+				        :text="!showingUntouchables ? 'View savings' : 'View bags'"
+				        style="flex:0 0 auto; height:34px; margin-top:20px;"
+				        :primary="showingUntouchables"
+				        @click.native="showingUntouchables = !showingUntouchables" />
 			</section>
+
+			<section class="tokens-list">
+
+
+				<section class="token force-actions" v-for="network in accountImportableNetworks" v-if="!hasImportedAccount(network)">
+					<section class="left">
+						<SymbolBall :token="network.systemToken()" />
+						<section class="basic-info">
+							<figure class="name">{{network.systemToken().symbol}}</figure>
+							<figure class="price">You don't have an account for {{network.name}} yet.</figure>
+						</section>
+					</section>
+					<section class="right">
+						<section class="actions">
+							<Button text="Setup Account" @click.native="createImportableAccount(network)" primary="1" />
+						</section>
+					</section>
+				</section>
+
+
+				<section class="token" v-for="token in tokens.slice(0, page*pageLength)">
+					<section class="left">
+						<SymbolBall :token="token" />
+						<section class="basic-info">
+							<!--<figure class="stable-tag" v-if="isStableCoin(token)">MONEY</figure>-->
+							<figure class="tokens-network" v-if="hasMoreThanOneNetwork(token) && !isEndorsedNetworkToken(token)">{{token.network().name}}</figure>
+							<figure class="contract" v-if="hasMoreThanOneContract(token)">{{token.contract}}</figure>
+							<figure class="name">{{token.symbol}}</figure>
+							<figure class="app-link" v-if="appLink(token)" @click="openApp(token)"><i class="fal fa-rocket"></i>{{appLink(token).name}}</figure>
+							<span class="token-option" v-if="!isMobile && canStabilize(token)"><i class="fal fa-balance-scale"></i></span>
+							<span class="token-option" v-if="!isMobile && canBuy(token)"><i class="fal fa-shopping-cart"></i></span>
+							<span class="token-option" v-if="!isMobile && canExchange(token)"><i class="fal fa-exchange-alt"></i></span>
+							<span class="token-option" v-if="!isMobile && !showingUntouchables && savingsEnabled && isSystemToken(token) && lockableChains[token.network().unique()]"><i class="fal fa-piggy-bank"></i></span>
+						</section>
+					</section>
+
+
+					<section class="right" v-if="isSystemToken(token)">
+						<section class="balance" v-if="token.fiatBalance(false)">{{currency}}{{formatNumber(token.fiatBalance(false))}}</section>
+						<section class="balance" :class="{'alternate':token.fiatBalance(false)}">{{formatNumber(token.amount)}} {{token.symbol}}</section>
+					</section>
+					<section class="right" v-else-if="isStableCoin(token)">
+						<section class="balance stable">{{currency}}{{formatNumber(parseFloat(token.amount).toFixed(4))}}</section>
+					</section>
+					<section class="right" v-else>
+						<section class="balance smaller">{{formatNumber(token.amount)}}</section>
+					</section>
+
+
+					<section class="actions" v-if="!token.unusable">
+						<Button v-tooltip="tooltip('Discard')" v-if="canDiscard(token)" @click.native="discard(token)" icon="fal fa-ban" />
+						<Button v-tooltip="tooltip('Buy')" v-if="canBuy(token)" @click.native="buy(token)" icon="fal fa-shopping-cart" />
+						<Button v-tooltip="tooltip(`Convert`)" v-if="canExchange(token)" @click.native="exchange(token)" icon="fal fa-exchange-alt" />
+						<Button v-tooltip="tooltip(`Stabilize`)" v-if="canStabilize(token)" @click.native="stabilize(token)" icon="fal fa-balance-scale" />
+						<Button v-tooltip="tooltip(`Savings`)" v-if="savingsEnabled && isSystemToken(token) && lockableChains[token.network().unique()]" @click.native="lockToken(token)" icon="fal fa-piggy-bank" />
+						<Button v-tooltip="tooltip(`Receive`)" @click.native="receive(token)" icon="fal fa-inbox-in" />
+						<Button primary="1" @click.native="transfer(token)" icon="fal fa-paper-plane" text="Send" />
+					</section>
+
+					<section class="actions" v-if="token.unusable">
+						<!--<Button @click.native="unlockToken(token)" icon="far fa-chart-line" v-tooltip="`View gains`" />-->
+						<Button primary="1" @click.native="unlockToken(token)" icon="far fa-hammer" text="Release" />
+					</section>
+				</section>
+			</section>
+
+			<section v-if="page*pageLength < tokens.length">
+				<br>
+				<br>
+				<br>
+				<section class="flex">
+					<Button text="Show More" @click.native="page++" />
+				</section>
+			</section>
+
+			<br>
+			<br>
+			<br>
+			<br>
+			<br>
+			<br>
+			<br>
 		</section>
 
-		<br>
-		<br>
-		<br>
-		<br>
-		<br>
-		<br>
-		<br>
+
 	</section>
 </template>
 
 <script>
 	import PopupService from "../../services/utility/PopupService";
 	import Popups from "../../util/Popups";
-	import {mapState} from "vuex";
+	import {mapActions, mapState} from "vuex";
 	import BalanceService from "@walletpack/core/services/blockchain/BalanceService";
 	import PriceService from "@walletpack/core/services/apis/PriceService";
 	import Hasher from "@walletpack/core/util/Hasher";
-	import {blockchainName, BlockchainsArray} from "@walletpack/core/models/Blockchains";
+	import {blockchainName, BlockchainsArray, Blockchains} from "@walletpack/core/models/Blockchains";
 	import SymbolBall from "../reusable/SymbolBall";
 	import BalanceHelpers from "../../services/utility/BalanceHelpers";
+	import Chart from 'chart.js';
+	import PluginRepository from '@walletpack/core/plugins/PluginRepository';
+	import SingularAccounts from "../../services/utility/SingularAccounts";
+	import AppsService from "@walletpack/core/services/apps/AppsService";
+	import * as UIActions from '../../store/ui_actions';
+	import Stabilizer from "../../services/special/Stabilizer";
+	import * as BackendApiService from '@walletpack/core/services/apis/BackendApiService';
+	import Token from '@walletpack/core/models/Token';
+	import SavingsService from "../../services/utility/SavingsService";
+	import Discarder from "../../services/utility/Discarder";
 
+
+	let chartTimeout;
 
 	export default {
 		components: {SymbolBall},
 		data(){return {
 			ready:false,
+			loadingBalances:true,
 
 
 			terms:'',
@@ -101,90 +170,249 @@
 			})),
 			currency:PriceService.fiatSymbol(),
 
-
+			chart:null,
+			showingUntouchables:false,
+			lockableChains:{},
 		}},
 		computed:{
 			...mapState([
 				'scatter',
-				'balances'
+				'balances',
+				'dappData',
+				'currencies',
+				'untouchables',
+				'exchangeables',
+				'featureFlags',
 			]),
+			savingsEnabled(){
+				return this.featureFlags.savings;
+			},
+			stableCoins(){
+				return this.tokens.filter(x => x.amount > 0 && this.isStableCoin(x));
+			},
+			systemTokens(){
+				const systemTokens = this.scatter.settings.networks.map(x => x.systemToken());
+				const balanceTokens = BalanceHelpers.tokens().filter(x => x.network().systemToken().unique() === x.unique());
+				systemTokens.map(token => { if(!balanceTokens.find(x => x.unique() === token.unique())) balanceTokens.push(token); });
+				return balanceTokens;
+			},
+			otherTokens(){
+				return this.tokens.filter(x => x.network().systemToken().unique() !== x.unique());
+			},
+			totalBalance(){
+				const stableValue = this.stableCoins.reduce((acc, x) => {
+					const amount = (x.amount * this.currencies[this.scatter.settings.displayCurrency]);
+					if(isNaN(amount)) return acc;
+					return acc + amount;
+				}, 0);
+				return parseFloat(parseFloat(BalanceHelpers.fiatTotalFor(this.systemTokens)) + parseFloat(stableValue)).toFixed(2);
+			},
 			tokens(){
 				if(!this.ready) return [];
 
-				let balances = BalanceService.totalBalances(true).totals;
-				balances = Object.keys(balances).map(key => balances[key]);
+				if(this.showingUntouchables) return this.untouchables.filter(x => SavingsService.canUseSavings(x));
 
-				balances = balances.reduce((acc,token) => {
-					const existing = acc.find(x => x.uniqueWithChain(false) === token.uniqueWithChain(false));
-					if(!existing){
-						acc.push(token.clone());
-					} else {
-						existing.amount = parseFloat(parseFloat(existing.amount) + parseFloat(token.amount)).toFixed(existing.decimals);
+				const tokensByBalances = BalanceHelpers.tokens();
+				this.systemTokens.map(token => {
+					if(!token.network().accounts().length) return;
+					if(!tokensByBalances.find(x => x.unique() === token.unique())){
+						tokensByBalances.push(token.clone());
 					}
-					return acc;
-				}, []);
-
-				balances = balances.sort((a,b) => {
-					const byBalance = b.fiatBalance(false) - a.fiatBalance(false);
-					const bySystem = b.network().systemToken().unique() === b.unique() ? 1 : a.network().systemToken().unique() === a.unique() ? -1 : 0;
-					return bySystem || byBalance;
 				});
 
-				return balances
+				return tokensByBalances
 					.filter(x => this.terms.length ?  x.symbol.toLowerCase().indexOf(this.terms) > -1 : true)
 					.filter(x => this.blockchainFilter ? x.blockchain === this.blockchainFilter : true)
 			},
+			accountImportableNetworks(){
+				// Hardcoding to EOS Mainnet for now.
+				return this.scatter.settings.networks.filter(x => PluginRepository.plugin(x.blockchain).accountsAreImported() && x.chainId.indexOf('aca') === 0)
+			},
 			eosMainnet(){
-				return this.scatter.settings.networks.find(x => x.blockchain === 'eos');
+				return this.scatter.settings.networks.find(x => PluginRepository.plugin('eos').isEndorsedNetwork(x));
+			},
+			reverseDappData(){
+				return Object.keys(this.dappData).reduce((acc, applink) => {
+					if(this.dappData[applink].token) acc[this.dappData[applink].token] = {
+						url:this.dappData[applink].url,
+						name:this.dappData[applink].name
+					};
+					return acc;
+				}, {});
 			}
+		},
+		beforeMount(){
+			this.loadingBalances = true;
+			setTimeout(async () => {
+				if(this.savingsEnabled) {
+					this.scatter.settings.networks.map(network => {
+						if (network.blockchain === 'eos') {
+							this.lockableChains[network.unique()] = true;
+						}
+						this.$forceUpdate();
+						// this.lockableChains[network.unique()] = PluginRepository.plugin(network.blockchain).hasAccountActions();
+					})
+
+					let untouchables = [];
+					await Promise.all(SingularAccounts.accounts().map(async account => {
+						(await BalanceService.loadUntouchables(account)).map(x => untouchables.push(x));
+						return true;
+					}));
+					this[UIActions.SET_UNTOUCHABLES](untouchables)
+
+				}
+
+				if(!this.exchangeables.length) {
+					BackendApiService.GET(`exchange/available`).then(uniques => {
+						this[UIActions.SET_EXCHANGEABLES](uniques.map(unique => Token.fromUnique(unique)));
+					})
+				}
+
+				if(parseFloat(this.totalBalance) > 0){
+					this.loadingBalances = false;
+				} else setTimeout(() => {
+					this.loadingBalances = false;
+				}, 1000);
+
+			}, 1);
 		},
 		mounted(){
 			setTimeout(() => this.ready = true, 10);
 			BalanceHelpers.loadBalances();
 
-			console.log('', this.scatter.keychain.accounts[2].tokens())
-			console.log('', this.balances)
+			this.loadChart();
 		},
 		methods:{
-			hasMoreThanOneNetwork(network){
-				if(!network) return console.error('bad token.network()', network);
-				console.log('network', network);
-				return this.scatter.settings.networks.filter(x => x.blockchain === network.blockchain).length > 1
+			tooltip(content){
+				return {content, delay:{show:350}};
 			},
-			createEosAccount(){
-				const network = this.scatter.settings.networks.find(x => x.blockchain === 'eos');
+			isStableCoin:BalanceHelpers.isStableCoin,
+			isSystemToken:BalanceHelpers.isSystemToken,
+			canBuy:BalanceHelpers.canBuy,
+			canDiscard:Discarder.canDiscard,
+			canStabilize:Stabilizer.canStabilize,
+			canExchange(token){
+				if(!this.featureFlags.exchange) return false;
+				return this.exchangeables.find(x => x.uniqueWithChain() === token.uniqueWithChain())
+			},
+			stabilize(token){
+				const clone = token.clone();
+				clone.amount = 0;
+				PopupService.push(Popups.stabilize(clone, done => {
+
+				}));
+			},
+			unlockToken(token){
+				const clone = token.clone();
+				PopupService.push(Popups.savings(clone, () => {}, true));
+			},
+			lockToken(token){
+				const clone = token.clone();
+				clone.amount = 0;
+				PopupService.push(Popups.savings(clone));
+			},
+			appLink(token){
+				return this.reverseDappData[token.uniqueWithChain()];
+			},
+			openApp(token){
+				let app = Object.keys(this.dappData).find(applink => {
+					if(!this.dappData[applink].token) return false;
+					return this.dappData[applink].token === token.uniqueWithChain();
+				});
+				if(!app) return console.error('No app found for', token);
+				PopupService.push(Popups.viewAppRatings(this.dappData[app]));
+			},
+			loadChart(){
+
+				const colors = () => this.systemTokens.map(token => '#'+Hasher.unsaltedQuickHash(token.unique()).slice(0,6))
+					.concat(this.stableCoins.map(token => '#'+Hasher.unsaltedQuickHash(token.unique()).slice(0,6)));
+
+				const values = () => this.systemTokens.map(token => token.fiatBalance(false))
+					.concat(this.stableCoins.map(token => token.amount))
+
+				clearTimeout(chartTimeout);
+				chartTimeout = setTimeout(() => {
+					if(!this.$refs.pie) return;
+					if(!this.chart){
+						this.chart = new Chart(this.$refs.pie.getContext('2d'), {
+							type: 'pie',
+							options:{
+								responsive:true,
+								maintainAspectRatio: false,
+								hover: {
+									mode: null,
+									animationDuration: 0
+								},
+								responsiveAnimationDuration: 0,
+								legend:{
+									display:false,
+								},
+								tooltips:{
+									enabled:false,
+								},
+							},
+							data: {
+								datasets: [{
+									borderWidth:0,
+									backgroundColor: colors(),
+									data: values()
+								}]
+							}
+						});
+					} else {
+						this.chart.data.datasets[0].backgroundColor = colors();
+						this.chart.data.datasets[0].data = values();
+						this.chart.update();
+					}
+				}, 500);
+			},
+			isEndorsedNetworkToken(token){
+				return PluginRepository.plugin(token.blockchain).isEndorsedNetwork(token.network());
+			},
+			hasMoreThanOneNetwork(token){
+				return this.tokens.filter(x => x.symbol === token.symbol).length > 1;
+			},
+			hasMoreThanOneContract(token){
+				return this.tokens.filter(x => x.symbol === token.symbol && token.network().unique() === x.network().unique()).length > 1;
+			},
+			createImportableAccount(network){
 				PopupService.push(Popups.createEosAccount(network))
 			},
-			hasEosAccount(network){
+			hasImportedAccount(network){
 				if(!network) return console.error('bad token.network()', network);
 				return this.scatter.keychain.accounts.find(x => x.networkUnique === network.unique());
-			},
-			canConvert(token){
-				if(!token.network()) return console.error('bad token.network()', token);
-				// return true;
-				// if(!this.scatter.keychain.identities[0].kyc) return;
-				// TODO: Need to check if the exchange supports each token.
-				if(token.network().systemToken().unique() === token.unique()) return true;
-				// return Math.round(Math.random() * 20 + 1) % 2 === 0;
-				return false;
-			},
-			canBuy(token){
-				return true;
-				if(!this.scatter.keychain.cards.length) return false;
-				const network = this.scatter.settings.networks.find(x => x.blockchain === token.blockchain && x.chainId === token.chainId);
-				return network.systemToken().unique() === token.unique();
 			},
 			exchange(token){
 				PopupService.push(Popups.exchange(token));
 			},
 			transfer(token){
-				const account = this.scatter.keychain.accounts.find(x => x.networkUnique === token.network());
+				const account = SingularAccounts.accounts([token.network()])[0];
 				PopupService.push(Popups.transfer(account, token));
 			},
+			receive(token = null){
+				// const account = SingularAccounts.accounts([token.network()])[0];
+				// PopupService.push(Popups.transfer(account, token));
+
+				PopupService.push(Popups.receive(token));
+			},
 			buy(token){
-				PopupService.push(Popups.buyTokens(token));
-			}
+				const clone = token.clone();
+				clone.amount = 0;
+				PopupService.push(Popups.buyTokens(clone));
+			},
+			discard(token){
+				PopupService.push(Popups.discardTokens(token));
+			},
+			...mapActions([
+				UIActions.SET_UNTOUCHABLES,
+				UIActions.SET_EXCHANGEABLES,
+			])
 		},
+		watch:{
+			['systemTokens'](){
+				this.loadChart();
+			}
+		}
 
 	}
 </script>
@@ -194,31 +422,67 @@
 
 	.assets {
 
-		.token-list {
+		$pie:220px;
+		.pie-chart {
+			width:$pie;
+			height:$pie;
+			background:$blue;
+			border-radius:50%;
+			padding:12px;
+			position: relative;
+			margin-bottom:40px;
+			box-shadow:0 0 30px 10px $darkblue, 0 2px 4px rgba(0,0,0,0.1), inset 0 1px 1px rgba(255,255,255,0.3);
+
+			.pie {
+				width:100%;
+				height:100%;
+				box-shadow:0 0 6px 6px $darkblue;
+				border-radius:50%;
+				position: relative;
+			}
+
+			.overlay {
+				background:white;
+				position:absolute;
+				top:0;
+				bottom:0;
+				left:0;
+				right:0;
+				border-radius:50%;
+				margin:20px;
+				box-shadow:0 0 5px 3px rgba(0,0,0,0.2);
+				display:flex;
+				justify-content: center;
+				align-items: center;
+				flex-direction: column;
+
+				.balance {
+					font-size: 22px;
+					font-weight: bold;
+					color:$dark;
+				}
+
+				.text {
+					font-size: 11px;
+					color:$grey;
+				}
+
+				.loading {
+					font-size: 36px;
+					color:$grey;
+				}
+			}
+		}
+
+		.tokens-list {
 			.token {
 				padding:20px 0;
 				display:flex;
 				align-items: center;
-				overflow: hidden;
 				position: relative;
 
 				&:not(:last-child){
 					border-bottom:1px solid $borderlight;
-				}
-
-				&:hover,
-				&:focus {
-					.actions {
-						opacity:1;
-					}
-
-					.balance {
-						opacity:0;
-					}
-
-					.token-network {
-						opacity:0;
-					}
 				}
 
 				.basic-info {
@@ -227,6 +491,8 @@
 					margin-left:20px;
 
 					.name {
+						display:flex;
+						align-items: center;
 						font-size: $font-size-large;
 						font-weight: bold;
 					}
@@ -237,11 +503,64 @@
 						margin-top:3px;
 						color:$grey;
 					}
+
+					.app-link {
+						display:inline-block;
+						font-size: $font-size-tiny;
+						font-weight: bold;
+						padding:3px 5px;
+						border-radius:4px;
+						color:$grey;
+						border:1px solid $grey;
+						cursor: pointer;
+						margin-right:10px;
+
+						&:hover {
+							color:$blue;
+							border:1px solid $blue;
+						}
+
+						i {
+							margin:0 5px 0 0;
+							padding:0;
+						}
+					}
+
+					.token-option {
+						font-size: $font-size-tiny;
+						font-weight: bold;
+						margin-top:3px;
+						color:$blue;
+						margin-right:5px;
+
+						&.grey {
+							color:$grey;
+						}
+					}
 				}
 
-				.token-network {
+				.tokens-network {
+					display:inline-block;
 					font-size: $font-size-tiny;
 					color:$grey;
+					margin-right:5px;
+				}
+
+				.contract {
+					display:inline-block;
+					font-size: $font-size-tiny;
+					color:$blue;
+					margin-right:5px;
+				}
+
+				.stable-tag {
+					display:inline-block;
+					font-size: 9px;
+					color:white;
+					background:$blue;
+					padding:2px 4px;
+					border-radius:4px;
+					margin-right:5px;
 				}
 
 				.left {
@@ -252,9 +571,18 @@
 
 				.actions {
 					position:absolute;
-					right:0;
-					top:20px;
 					opacity:0;
+					display:flex;
+					align-items: center;
+					height:100%;
+					top:0;
+					bottom:0;
+					right:0;
+					transform:translateX(50px);
+
+					button {
+						margin-left:5px;
+					}
 				}
 
 				.balance {
@@ -266,13 +594,34 @@
 						font-size: $font-size-tiny;
 						color:$grey;
 					}
+
+					&.stable {
+						font-size: $font-size-large;
+					}
+
+					&.smaller {
+						font-size: $font-size-standard;
+					}
 				}
 
-				.actions {
-					display:flex;
+				.actions, .balance {
+					transition:all 0.8s ease;
+					transition-property: opacity, transform;
+				}
 
-					button {
-						margin-left:5px;
+				&:hover,
+				&:focus, &.force-actions {
+
+					.actions {
+						opacity:1;
+						transform:translateX(0px);
+						transition:all 0.2s ease;
+					}
+
+					.balance {
+						opacity:0;
+						transform:translateX(-100px);
+						transition:all 0.1s ease;
 					}
 				}
 			}
@@ -282,7 +631,7 @@
 	.blue-steel {
 		.assets {
 
-			.token-list {
+			.tokens-list {
 				.token {
 					&:not(:last-child){
 						border-bottom:1px solid $borderdark;
@@ -295,7 +644,7 @@
 	.mobile {
 		.assets {
 
-			.token-list {
+			.tokens-list {
 				.token {
 					border:0;
 					margin-bottom:30px;
@@ -327,13 +676,14 @@
 
 				.actions {
 					opacity:1;
-					top:86px;
+					align-items: flex-end;
 					left:0;
 					right:0;
 					border-top:1px solid $lightblue;
 					display:flex;
 					flex-direction:row;
 					justify-content:stretch;
+					transform:translateX(0px);
 
 					button {
 						flex-grow:1;
@@ -353,7 +703,7 @@
 	.blue-steel {
 		.assets {
 
-			.token-list {
+			.tokens-list {
 
 				.basic-info {
 
@@ -373,7 +723,7 @@
 	.mobile {
 		&.blue-steel {
 			.assets {
-				.token-list {
+				.tokens-list {
 					.token {
 						box-shadow: 0 4px 10px $darkshadow;
 					}

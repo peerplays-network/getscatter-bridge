@@ -1,17 +1,20 @@
 
-const PopOut  = () => import('../views/PopOut');
-const Dashboard  = () => import('../views/Dashboard');
-const Wallet  = () => import('../views/Wallet');
-const Identity  = () => import('../views/Identity');
-const Apps  = () => import('../views/Apps');
-const Login  = () => import('../views/Login');
-const Settings  = () => import('../views/Settings');
+// const PopOut  = () => import('../views/PopOut');
+// const Dashboard  = () => import('../views/Dashboard');
+// const Wallet  = () => import('../views/Wallet');
+// const Identity  = () => import('../views/Identity');
+// const Apps  = () => import('../views/Apps');
+// const Login  = () => import('../views/Login');
+// const Settings  = () => import('../views/Settings');
 
-// import Dashboard from '../views/Dashboard';
-// import Wallet from '../views/Wallet';
-// import Identity from '../views/Identity';
-// import Apps from '../views/Apps';
-// import Login from '../views/Login';
+import PopOut from '../views/PopOut';
+import Dashboard from '../views/Dashboard';
+import Wallet from '../views/Wallet';
+import Identity from '../views/Identity';
+import Apps from '../views/Apps';
+import Login from '../views/Login';
+import Settings from '../views/Settings';
+import Socialize from '../views/Socialize';
 
 
 
@@ -24,6 +27,7 @@ export const RouteNames = {
 	Apps:'Apps',
 	Login:'Login',
 	Settings:'Settings',
+	Socialize:'Socialize',
 };
 
 const RouteViews = {
@@ -32,6 +36,7 @@ const RouteViews = {
 	[RouteNames.Identity]:Identity,
 	[RouteNames.Apps]:Apps,
 	[RouteNames.Login]:Login,
+	[RouteNames.Socialize]:Socialize,
 	[RouteNames.Settings]:Settings,
 	[RouteNames.POP_OUT]:PopOut,
 };
