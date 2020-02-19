@@ -171,6 +171,16 @@
 			}
 		},
 		methods:{
+			//TO-DO: Move this function to the form when it's ready
+			async importPeerplays(user, pass) {
+				// let user = 'miigunner69';
+				// let pass = 'QZvbzqGng8BMYzcFW4O5TpqJEwOXmy72O0ceLVwUqeuZ4grRnVmI';
+				let keypair = await KeyService.generatePPYKeys(user, pass);
+				keypair.setName();
+				keypair.username = 'miigunner69';
+				await KeyPairService.saveKeyPair(keypair);
+				await this.loadAccounts(keypair);
+			},
 			async loadAccounts(keypair){
 				const loadedAccount = SingularAccounts.accounts([this.network])[0];
 				const accounts = await AccountService.getAccountsFor(keypair, this.network);

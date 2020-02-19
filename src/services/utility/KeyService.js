@@ -33,4 +33,8 @@ export default class KeyService {
 		return keypair;
 	}
 
+	static generatePPYKeys(user, password) {
+		return KeyPairService.generatePPYKeys(user, password);
+	}
+
 }
