@@ -45,7 +45,7 @@
     "@babel/node": "^7.5.0",
     "@babel/preset-env": "^7.5.2",
     "@babel/register": "^7.4.4",
-    "@fortawesome/fontawesome-pro": "^5.10.1",
+    "@fortawesome/fontawesome-free": "^5.10.1",
     "@vue/cli-plugin-babel": "^3.9.0",
     "@vue/cli-service": "^3.9.0",
     "chai": "^4.2.0",
