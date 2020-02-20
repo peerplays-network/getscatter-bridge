@@ -142,7 +142,7 @@
 				return this.popin.data.props.account;
 			},
 			hasMemo(){
-				return this.token.blockchain === Blockchains.EOSIO;
+				return this.token.blockchain === Blockchains.EOSIO || this.token.blockchain === Blockchains.PPY;
 			}
 		},
 		methods:{
