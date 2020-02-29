@@ -63,11 +63,15 @@
 
 						<section class="keys">
 							<section class="key" :key="key.id" v-for="key in keys">
-								<figure class="public-key">{{key.publicKeys.find(x => x.blockchain === network.blockchain).key}}</figure>
+								<figure class="public-key">
+									<figure class="key-text">{{key.publicKeys.find(x => x.blockchain === network.blockchain).key}}</figure>
+									<figure class="warning" v-if="hasMnemonic">This key is not attached to your mnemonic phrase (words). It will not import when you import your words. You should save this key manually.</figure>
+								</figure>
 								<section class="actions">
-									<Button v-if="!key.external" icon="fa fa-key" @click.native="exportKey(key)" />
-									<Button v-if="!isAccountlessChain" icon="fa fa-sync-alt" :loading="loadingAccounts[key.unique()]" @click.native="refreshAccounts(key)" />
-									<Button icon="fa fa-trash" @click.native="removeKey(key)" />
+									<Button v-if="!key.external" v-tooltip="`Export private key`" icon="fa fa-key" @click.native="exportKey(key)" />
+									<Button v-if="!key.external" v-tooltip="`Convert blockchains`" icon="fa fa-link" @click.native="convertKeypair(key)" />
+									<Button v-if="!isAccountlessChain" v-tooltip="`Refresh accounts`" icon="fa fa-sync-alt" :loading="loadingAccounts[key.unique()]" @click.native="refreshAccounts(key)" />
+									<Button icon="fa fa-trash" v-tooltip="`Remove key`" @click.native="removeKey(key)" />
 								</section>
 
 								<section class="accounts">
@@ -129,6 +133,7 @@
 		data(){return {
 			importingHardware:false,
 			canUseHardware:false,
+			hardwareBlockchains:[],
 
 			addingNewKey:false,
 
@@ -147,7 +152,7 @@
 			}
 
 			window.wallet.hardwareTypes()
-				.then(x => this.canUseHardware = !!x.length)
+				.then(x => this.canUseHardware = x.length && x.some(y => y.blockchains.find(b => b === this.network.blockchain)))
 				.catch(() => this.canUseHardware = false);
 		},
 		computed:{
@@ -168,6 +173,9 @@
 			},
 			currentlySelected(){
 				return SingularAccounts.accounts([this.network])[0];
+			},
+			hasMnemonic(){
+				return !!this.scatter.keychain.keypairs.find(x => x.base);
 			}
 		},
 		methods:{
@@ -175,7 +183,7 @@
 				const loadedAccount = SingularAccounts.accounts([this.network])[0];
 				const accounts = await AccountService.getAccountsFor(keypair, this.network);
 
-				if(loadedAccount && !accounts.find(x => x.unique() === loadedAccount.unique())){
+				if(loadedAccount && loadedAccount.keypairUnique === keypair.unique() && !accounts.find(x => x.unique() === loadedAccount.unique())){
 					accounts.unshift(loadedAccount);
 				}
 
@@ -208,15 +216,23 @@
 				keypair.setName();
 				await KeyPairService.saveKeyPair(keypair);
 
+				this.exportKey(keypair, true);
+
 				// We don't need to tap chain here, since eosio networks won't automatically add an account.
 				if(this.isAccountlessChain) {
-					await AccountService.addAccount(Account.fromJson({
+					const account = Account.fromJson({
 						keypairUnique: keypair.unique(),
 						networkUnique: this.network.unique(),
 						publicKey: keypair.publicKeys.find(x => x.blockchain === this.network.blockchain).key
-					}));
+					});
+					await AccountService.addAccount(account);
+
+					this.select(account, false);
 				}
-				this.exportKey(keypair, true);
+
+				await this.loadAccounts(keypair);
+				this.loadingKey = false;
+				this.addingNewKey = false;
 			},
 			isCurrentlySelected(account){
 				if(!this.currentlySelected) return false;
@@ -235,6 +251,7 @@
 				}
 			},
 			removeKey(keypair){
+				if(keypair.base) return PopupService.push(Popups.snackbar('This is a base key which belongs to your seed, you can not remove it.'));
 				PopupService.push(Popups.confirmDeleteKeypair(confirmed => {
 					if(!confirmed) return;
 					KeyPairService.removeKeyPair(keypair);
@@ -265,14 +282,14 @@
 			addHardware(){
 				// TODO: Need to add hardware importing
 			},
-			async select(account){
+			async select(account, close = true){
 				const oldAccounts = this.network.accounts();
 				if(oldAccounts.length) await AccountService.removeAccounts(oldAccounts);
 
 				await AccountService.addAccount(account);
 				SingularAccounts.setPredefinedAccount(this.network, account);
 				BalanceService.loadBalancesFor(account);
-				this.closer(true);
+				if(close) this.closer(true);
 			},
 			async checkTextKey(){
 
@@ -285,40 +302,11 @@
 					await KeyPairService.saveKeyPair(keypair);
 					await this.loadAccounts(keypair);
 				}
-
-				// this.error = null;
-				// if(!this.privateKey || !this.privateKey.trim().length) return;
-				// const key = this.privateKey.trim().replace(/\W/g, '').replace('0x', '');
-				// const keypair = Keypair.placeholder();
-				// keypair.privateKey = key;
-				// if(!KeyPairService.isValidPrivateKey(keypair)) return;
-				//
-				//
-				// // Buffer conversion
-				// await KeyPairService.convertHexPrivateToBuffer(keypair);
-				//
-				// const blockchains = KeyPairService.getImportedKeyBlockchains(key);
-				// if(!blockchains.includes(this.network.blockchain)){
-				// 	this.loadingKey = false;
-				// 	return PopupService.push(Popups.snackbar('This key does not match this network.'))
-				// }
-				//
-				// keypair.blockchains = [this.network.blockchain];
-				// await KeyPairService.makePublicKeys(keypair);
-				// if(!keypair.publicKeys.find(x => x.blockchain === this.network.blockchain)) {
-				// 	this.loadingKey = false;
-				// 	return PopupService.push(Popups.snackbar('Error generating public keys.'));
-				// }
-				// keypair.setName();
-				//
-				// if(keypair.isUnique()) {
-				// 	await KeyPairService.saveKeyPair(keypair);
-				// 	await this.loadAccounts(keypair);
-				// }
-				//
-				// this.privateKey = null;
-				// this.loadingKey = false;
-				// this.addingNewKey = false;
+			},
+			convertKeypair(keypair){
+				PopupService.push(Popups.convertKeypair(keypair, converted => {
+					if(converted) PopupService.push(Popups.snackbar("Conversion successful. Check the network for the corresponding blockchain."))
+				}));
 			},
 			...mapActions([
 				Actions.SET_BALANCES,
@@ -458,11 +446,28 @@
 				border-radius:4px;
 
 				.public-key {
-					font-size: $font-size-standard;
-					word-break: break-word;
-					font-weight: bold;
-					color:$blue;
 					margin-bottom:10px;
+
+					.key-text {
+						font-size: $font-size-tiny;
+						word-break: break-word;
+						font-weight: bold;
+						color:$blue;
+						text-align:center;
+						border-bottom:1px solid $borderlight;
+						padding-bottom:10px;
+					}
+
+					.warning {
+
+						font-size: $font-size-tiny;
+						color:white;
+						background:$red;
+						padding:5px 10px;
+						border-radius:4px;
+						margin-top:5px;
+						display:table;
+					}
 				}
 
 				.accounts {
@@ -485,6 +490,30 @@
 
 						.icon {
 							font-size: 13px;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	.blue-steel {
+		.edit-network-account {
+			.head {
+				border-bottom: 1px solid $borderdark;
+			}
+			.search {
+				border-bottom: 1px solid $borderdark;
+			}
+			.keys {
+
+				.key {
+					border: 3px solid $borderdark;
+
+					.public-key {
+
+						.key-text {
+							border-bottom:1px solid $borderdark;
 						}
 					}
 				}
