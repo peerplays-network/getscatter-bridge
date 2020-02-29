@@ -305,7 +305,11 @@
 				Loader.set(false);
 			},
 			async selectAccountFor(network){
-				PopupService.push(Popups.editNetworkAccount(network));
+				if (network.blockchain === 'ppy') {
+					PopupService.push(Popups.editPeerplaysAccount(network));
+				} else {
+					PopupService.push(Popups.editNetworkAccount(network));
+				}
 			},
 			async unlock(){
 				if(this.unlocked) return true;

@@ -27,6 +27,7 @@
 							<Stabilize              class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'stabilize'" />
 							<DiscardTokens          class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'discardTokens'" />
 							<EditNetworkAccount     class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'editNetworkAccount'" />
+							<EditPeerplaysAccount   class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'editPeerplaysAccount'" />
 							<Receive                class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'receive'" />
 							<AddOrEditNetwork       class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'addOrEditNetwork'" />
 							<ExportPrivateKey       class="popin" :popin="popIn" :closer="closer(popIn)" v-if="popIn.data.type === 'exportPrivateKey'" />
@@ -87,6 +88,7 @@
 			ExportPrivateKey:() => import('../components/popups/ExportPrivateKey'),
 			EnterSecurityCode:() => import('../components/popups/EnterSecurityCode'),
 			EditNetworkAccount:() => import('../components/popups/EditNetworkAccount'),
+			EditPeerplaysAccount:() => import('../components/popups/EditPeerplaysAccount'),
 			TransactionSuccess:() => import('../components/popups/TransactionSuccess'),
 			SelectNetwork:() => import('../components/popups/SelectNetwork'),
 			CheckHardware:() => import('../components/popups/CheckHardware'),

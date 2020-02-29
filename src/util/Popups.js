@@ -98,6 +98,10 @@ export default class Popups {
 		return new Popup(PopupDisplayTypes.POP_IN, new PopupData('editNetworkAccount', {network, importing}, callback))
 	}
 
+	static editPeerplaysAccount(network, callback, importing = false){
+		return new Popup(PopupDisplayTypes.POP_IN, new PopupData('editPeerplaysAccount', {network, importing}, callback))
+	}
+
 	static exportPrivateKey(keypair, callback){
 		return new Popup(PopupDisplayTypes.POP_IN, new PopupData('exportPrivateKey', {keypair}, callback))
 	}

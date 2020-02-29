@@ -4,12 +4,20 @@
 		<section class="popup-content">
 			<section class="head">
 
-				<section class="texts" v-if="!addingNewKey">
-					<figure class="title">Select account</figure>
+				<section class="texts" v-if="importPPY">
+					<figure class="title">Import Peerplays</figure>
 					<figure class="sub-title">
-						In simple mode you can only use a single account per network. Please select your preferred account.
+						Enter your Peerplays account credentials to import it into Scatter.
 					</figure>
 				</section>
+
+				<section v-if="!importPPY">
+					<section class="texts" v-if="!addingNewKey">
+						<figure class="title">Select account</figure>
+						<figure class="sub-title">
+							In simple mode you can only use a single account per network. Please select your preferred account.
+						</figure>
+					</section>
 
 				<section v-if="addingNewKey">
 					<section class="texts" v-if="!importingHardware">
@@ -36,9 +44,18 @@
 					</figure>
 				</figure>
 			</section>
-
+				</section>
+			
+	
 			<section class="new-key" v-if="addingNewKey">
-				<section v-if="!importingHardware">
+					<section v-if="!importingHardware">
+						<Button text="Login to Import Peerplays Account" style="margin-bottom:5px;" primary="1" @click.native="toggleImportPPY" />
+						<Button text="Create New Peerplays Account" style="margin-bottom:5px;" primary="1" @click.native="generateKey" />
+
+				<ImportHardware v-if="importingHardware" :blockchain="network.blockchain" v-on:imported="importedHardware" />
+			</section>
+
+				<section v-else-if="!importingHardware">
 					<Input :disabled="loadingKey" label="Input your private key" :text="privateKey" v-on:changed="x => privateKey = x" style="margin-bottom:0;" />
 
 					<br>
@@ -52,7 +69,15 @@
 				<ImportHardware v-if="importingHardware" :blockchain="network.blockchain" v-on:imported="importedHardware" />
 			</section>
 
-			<section v-if="!addingNewKey">
+			<section class="new-key" v-if="importPPY">
+				<Input :disabled="loadingKey" label="Account Name" :text="username" v-on:changed="x => username = x" style="margin-bottom:0;" />
+				<br>
+				<Input :disabled="loadingKey" label="Password" :text="password" v-on:changed="x => password = x" style="margin-bottom:0;" />
+				<br>
+				<Button text="Login" style="margin-bottom:5px;" primary="1" @click.native="loginToImport" />
+			</section>
+
+			<section v-else-if="!addingNewKey">
 				<section v-if="keys.length">
 					<section class="search">
 						<i class="fa fa-search"></i>
@@ -63,15 +88,11 @@
 
 						<section class="keys">
 							<section class="key" :key="key.id" v-for="key in keys">
-								<figure class="public-key">
-									<figure class="key-text">{{key.publicKeys.find(x => x.blockchain === network.blockchain).key}}</figure>
-									<figure class="warning" v-if="hasMnemonic">This key is not attached to your mnemonic phrase (words). It will not import when you import your words. You should save this key manually.</figure>
-								</figure>
+								<figure class="public-key">{{key.publicKeys.find(x => x.blockchain === network.blockchain).key}}</figure>
 								<section class="actions">
-									<Button v-if="!key.external" v-tooltip="`Export private key`" icon="fa fa-key" @click.native="exportKey(key)" />
-									<Button v-if="!key.external" v-tooltip="`Convert blockchains`" icon="fa fa-link" @click.native="convertKeypair(key)" />
-									<Button v-if="!isAccountlessChain" v-tooltip="`Refresh accounts`" icon="fa fa-sync-alt" :loading="loadingAccounts[key.unique()]" @click.native="refreshAccounts(key)" />
-									<Button icon="fa fa-trash" v-tooltip="`Remove key`" @click.native="removeKey(key)" />
+									<Button v-if="!key.external" icon="fa fa-key" @click.native="exportKey(key)" />
+									<Button v-if="!isAccountlessChain" icon="fa fa-sync-alt" :loading="loadingAccounts[key.unique()]" @click.native="refreshAccounts(key)" />
+									<Button icon="fa fa-trash" @click.native="removeKey(key)" />
 								</section>
 
 								<section class="accounts">
@@ -91,7 +112,7 @@
 
 				<section v-else class="no-keys">
 
-					<img src="static/assets/identity.svg" />
+					<img src="@/assets/identity.svg" />
 					<p>You have no keys imported</p>
 				</section>
 			</section>
@@ -123,6 +144,7 @@
 	import AccountService from '@walletpack/core/services/blockchain/AccountService'
 	import PluginRepository from '@walletpack/core/plugins/PluginRepository'
 	import KeyService from "../../services/utility/KeyService";
+
 	let keyTimeout;
 	export default {
 		props:['popin', 'closer'],
@@ -132,21 +154,28 @@
 		data(){return {
 			importingHardware:false,
 			canUseHardware:false,
-			hardwareBlockchains:[],
+
 			addingNewKey:false,
+			importPPY: false,
+
 			terms:'',
 			privateKey:'',
+			username:'',
+			password:'',
 			loadingKey:false,
 			loadingAccounts:{},
+
 			accounts:{},
 		}},
 		created(){
 			this.keys.map(keypair => this.loadAccounts(keypair));
+
 			if(this.importing){
 				this.addingNewKey = true;
 			}
+
 			window.wallet.hardwareTypes()
-				.then(x => this.canUseHardware = x.length && x.some(y => y.blockchains.find(b => b === this.network.blockchain)))
+				.then(x => this.canUseHardware = !!x.length)
 				.catch(() => this.canUseHardware = false);
 		},
 		computed:{
@@ -167,22 +196,23 @@
 			},
 			currentlySelected(){
 				return SingularAccounts.accounts([this.network])[0];
-			},
-			hasMnemonic(){
-				return !!this.scatter.keychain.keypairs.find(x => x.base);
 			}
 		},
 		methods:{
 			async loadAccounts(keypair){
 				const loadedAccount = SingularAccounts.accounts([this.network])[0];
 				const accounts = await AccountService.getAccountsFor(keypair, this.network);
-				if(loadedAccount && loadedAccount.keypairUnique === keypair.unique() && !accounts.find(x => x.unique() === loadedAccount.unique())){
+
+				if(loadedAccount && !accounts.find(x => x.unique() === loadedAccount.unique())){
 					accounts.unshift(loadedAccount);
 				}
+
 				this.accounts[keypair.unique()] = accounts;
+
 				if(!SingularAccounts.accounts([this.network]).length && accounts.length){
 					SingularAccounts.setPredefinedAccount(this.network, accounts[0]);
 				}
+
 				this.$forceUpdate();
 			},
 			async importedHardware(keypair){
@@ -198,6 +228,13 @@
 				this.addingNewKey = !this.addingNewKey;
 				this.importingHardware = false;
 			},
+
+			toggleImportPPY() {
+				this.importPPY = !this.importPPY;
+				this.importingHardware = false;
+				this.addingNewKey = false;
+			},
+
 			async generateKey(){
 				const keypair = Keypair.placeholder();
 				keypair.blockchains = [this.network.blockchain];
@@ -205,21 +242,35 @@
 				await KeyPairService.makePublicKeys(keypair);
 				keypair.setName();
 				await KeyPairService.saveKeyPair(keypair);
-				this.exportKey(keypair, true);
+
 				// We don't need to tap chain here, since eosio networks won't automatically add an account.
 				if(this.isAccountlessChain) {
-					const account = Account.fromJson({
+					await AccountService.addAccount(Account.fromJson({
 						keypairUnique: keypair.unique(),
 						networkUnique: this.network.unique(),
 						publicKey: keypair.publicKeys.find(x => x.blockchain === this.network.blockchain).key
-					});
-					await AccountService.addAccount(account);
-					this.select(account, false);
+					}));
 				}
-				await this.loadAccounts(keypair);
-				this.loadingKey = false;
-				this.addingNewKey = false;
+				this.exportKey(keypair, true);
 			},
+
+			async loginToImport() {
+				let MAX_PASSWORD_CHARACTERS = 22;
+				if (!this.username || !this.password || this.password.length < 22) {
+					return PopupService.push(Popups.snackbar('Invalid username or password.'));
+				}
+				let user = this.username;
+				let pass = this.password;
+
+
+				let keypair = await KeyService.generatePPYKeys(user, pass);
+				keypair.setName();
+				keypair.username = user;
+				await KeyPairService.saveKeyPair(keypair);
+				await this.loadAccounts(keypair);
+				this.toggleImportPPY();
+			},
+
 			isCurrentlySelected(account){
 				if(!this.currentlySelected) return false;
 				return this.currentlySelected.identifiable() === account.identifiable();
@@ -231,12 +282,12 @@
 						if(window.wallet) r(await window.wallet.verifyPassword(password).catch(() => false));
 					}));
 				});
+
 				if(unlocked){
 					PopupService.push(Popups.exportPrivateKey(keypair))
 				}
 			},
 			removeKey(keypair){
-				if(keypair.base) return PopupService.push(Popups.snackbar('This is a base key which belongs to your seed, you can not remove it.'));
 				PopupService.push(Popups.confirmDeleteKeypair(confirmed => {
 					if(!confirmed) return;
 					KeyPairService.removeKeyPair(keypair);
@@ -244,6 +295,7 @@
 			},
 			refreshAccounts(keypair){
 				if(this.loadingAccounts[keypair.unique()]) return;
+
 				this.loadingAccounts[keypair.unique()] = true;
 				this.$forceUpdate();
 				setTimeout(() => {
@@ -266,28 +318,71 @@
 			addHardware(){
 				// TODO: Need to add hardware importing
 			},
-			async select(account, close = true){
+			async select(account){
 				const oldAccounts = this.network.accounts();
 				if(oldAccounts.length) await AccountService.removeAccounts(oldAccounts);
+
 				await AccountService.addAccount(account);
 				SingularAccounts.setPredefinedAccount(this.network, account);
 				BalanceService.loadBalancesFor(account);
-				if(close) this.closer(true);
+				this.closer(true);
 			},
 			async checkTextKey(){
+
+				// if (this.privateKey === 'ppy') {
+				// 	let user = 'miigunner69';
+				// 	let pass = 'QZvbzqGng8BMYzcFW4O5TpqJEwOXmy72O0ceLVwUqeuZ4grRnVmI';
+				// 	let keypair = await KeyService.generatePPYKeys(user, pass);
+				// 	let x = keypair.privateKey;
+				// 	keypair.setName();
+				// 	keypair.username = 'miigunner69';
+				// 	await KeyPairService.saveKeyPair(keypair);
+				// 	await this.loadAccounts(keypair);
+				// }
+
 				const keypair = await KeyService.checkTextKey(this.privateKey, this.network.blockchain);
 				this.loadingKey = false;
+
 				if(keypair){
 					this.privateKey = null;
 					this.addingNewKey = false;
 					await KeyPairService.saveKeyPair(keypair);
 					await this.loadAccounts(keypair);
 				}
-			},
-			convertKeypair(keypair){
-				PopupService.push(Popups.convertKeypair(keypair, converted => {
-					if(converted) PopupService.push(Popups.snackbar("Conversion successful. Check the network for the corresponding blockchain."))
-				}));
+
+				// this.error = null;
+				// if(!this.privateKey || !this.privateKey.trim().length) return;
+				// const key = this.privateKey.trim().replace(/\W/g, '').replace('0x', '');
+				// const keypair = Keypair.placeholder();
+				// keypair.privateKey = key;
+				// if(!KeyPairService.isValidPrivateKey(keypair)) return;
+				//
+				//
+				// // Buffer conversion
+				// await KeyPairService.convertHexPrivateToBuffer(keypair);
+				//
+				// const blockchains = KeyPairService.getImportedKeyBlockchains(key);
+				// if(!blockchains.includes(this.network.blockchain)){
+				// 	this.loadingKey = false;
+				// 	return PopupService.push(Popups.snackbar('This key does not match this network.'))
+				// }
+				//
+				// keypair.blockchains = [this.network.blockchain];
+				// await KeyPairService.makePublicKeys(keypair);
+				// if(!keypair.publicKeys.find(x => x.blockchain === this.network.blockchain)) {
+				// 	this.loadingKey = false;
+				// 	return PopupService.push(Popups.snackbar('Error generating public keys.'));
+				// }
+				// keypair.setName();
+				//
+				// if(keypair.isUnique()) {
+				// 	await KeyPairService.saveKeyPair(keypair);
+				// 	await this.loadAccounts(keypair);
+				// }
+				//
+				// this.privateKey = null;
+				// this.loadingKey = false;
+				// this.addingNewKey = false;
 			},
 			...mapActions([
 				Actions.SET_BALANCES,
@@ -307,51 +402,64 @@
 
 <style lang="scss">
 	@import "../../styles/variables";
+
 	.edit-network-account {
 		max-width:500px;
 		width:calc(100% - 80px);
 		margin:0 auto;
+
 		.popup-content {
 			padding:0;
 		}
+
 		.no-keys {
 			padding:20px 0;
+
 			img {
 				width:180px;
 				height:auto;
 			}
+
 			p {
 				color:$grey;
 				font-size: $font-size-small;
 				font-weight: bold;
 			}
 		}
+
 		.new-key {
 			padding:20px;
+
 			button {
 				width:100%;
 			}
 		}
+
 		.head {
 			padding:20px;
 			text-align:left;
 			border-bottom:1px solid $borderlight;
+
 			.texts {
 				max-width:calc(100% - 80px);
+
 				.title {
 					font-size: $font-size-medium;
 					font-weight: bold;
 					margin:0;
 				}
+
 				.sub-title {
 					margin-top:0;
 					font-size: $font-size-small;
 				}
 			}
+
 			.action {
 				position:absolute;
 				top:20px;
 				right:20px;
+
 				.bubble {
 					width:40px;
 					height:40px;
@@ -363,79 +471,82 @@
 					align-items: center;
 					border-radius:50%;
 					cursor: pointer;
+
 					transition: transform 0.2s ease;
+
 					&:hover { transform:scale(1.1); }
 					&:active { transform:scale(0.9); }
+
 					&.active {
 						transform:rotateZ(45deg);
+
 						&:hover { transform:rotateZ(45deg) scale(1.1); }
 						&:active { transform:rotateZ(45deg) scale(0.9); }
 					}
 				}
 			}
 		}
+
 		.scroller {
 			padding-bottom:40px;
 			overflow-y:auto;
 			max-height:320px;
 		}
+
 		.search {
 			display:flex;
 			align-items: center;
 			padding:10px 20px;
 			border-bottom:1px solid $borderlight;
+
 			i {
 				margin-right:10px;
 				font-size: 11px;
 			}
+
 			input {
 				border:0;
 				outline:0;
 				flex:1;
 			}
+
 		}
+
 		.keys {
 			padding:20px;
+
 			.key {
 				text-align:left;
 				padding:10px;
 				border:3px solid $borderlight;
 				border-radius:4px;
+
 				.public-key {
+					font-size: $font-size-standard;
+					word-break: break-word;
+					font-weight: bold;
+					color:$blue;
 					margin-bottom:10px;
-					.key-text {
-						font-size: $font-size-tiny;
-						word-break: break-word;
-						font-weight: bold;
-						color:$blue;
-						text-align:center;
-						border-bottom:1px solid $borderlight;
-						padding-bottom:10px;
-					}
-					.warning {
-						font-size: $font-size-tiny;
-						color:white;
-						background:$red;
-						padding:5px 10px;
-						border-radius:4px;
-						margin-top:5px;
-						display:table;
-					}
 				}
+
 				.accounts {
 					margin-top:20px;
+
 					button {
 						width:100%;
 						margin-top:5px;
 					}
 				}
+
 				.actions {
 					display:flex;
 					justify-content: flex-end;
+
 					button {
 						padding:10px;
 						height:auto;
 						margin-left:5px;
+
 						.icon {
 							font-size: 13px;
 						}
@@ -444,24 +555,6 @@
 			}
 		}
 	}
-	.blue-steel {
-		.edit-network-account {
-			.head {
-				border-bottom: 1px solid $borderdark;
-			}
-			.search {
-				border-bottom: 1px solid $borderdark;
-			}
-			.keys {
-				.key {
-					border: 3px solid $borderdark;
-					.public-key {
-						.key-text {
-							border-bottom:1px solid $borderdark;
-						}
-					}
-				}
-			}
-		}
-	}
+
+
 </style>
