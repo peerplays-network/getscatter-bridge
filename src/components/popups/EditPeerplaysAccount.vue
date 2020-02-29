@@ -264,6 +264,9 @@
 
 
 				let keypair = await KeyService.generatePPYKeys(user, pass);
+				if (!keypair) {
+					return PopupService.push(Popups.snackbar('Account authentication failed.'));
+				}
 				keypair.setName();
 				keypair.username = user;
 				await KeyPairService.saveKeyPair(keypair);

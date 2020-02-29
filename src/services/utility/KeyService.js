@@ -33,8 +33,8 @@ export default class KeyService {
 		return keypair;
 	}
 
-	static generatePPYKeys(user, password) {
-		return KeyPairService.generatePPYKeys(user, password);
+	static async generatePPYKeys(user, password) {
+		return await KeyPairService.generatePPYKeys(user, password);
 	}
 
 }
