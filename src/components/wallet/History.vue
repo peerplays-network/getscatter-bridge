@@ -15,27 +15,34 @@
 				</section>
 			</section>
 
-			<SearchBar :options="filters"
-			           v-on:terms="x => terms = x"
-			           v-on:selected="x => blockchainFilter = x" />
+			<section class="flex">
+				<SearchBar v-on:terms="x => terms = x" placeholder="Search your history" />
+				<Button icon="fal fa-ban" v-tooltip="`Clear History`" style="flex:0 0 auto; height:34px; margin-top:20px;" primary="1" @click.native="clearHistory" />
+			</section>
 
 			<section class="history-list">
 
 				<section class="history" v-for="hist in histories">
 					<figure class="icon">
-						<SymbolBall v-if="hist.type === HISTORY_TYPES.Exchange" :token="hist.fromToken" symbol="fal fa-exchange-alt" />
+						<SymbolBall v-tooltip="`Exchange`" v-if="hist.type === HISTORY_TYPES.Exchange" :token="hist.fromToken" symbol="fal fa-exchange-alt" />
 						<SymbolBall v-if="hist.type === HISTORY_TYPES.Exchange" :token="hist.toToken" symbol="fal fa-exchange-alt" />
-						<SymbolBall v-if="hist.type === HISTORY_TYPES.Transfer" :token="hist.token" symbol="fal fa-paper-plane" />
-						<SymbolBall v-if="hist.type === HISTORY_TYPES.Action" symbol="fal fa-exclamation" />
+						<SymbolBall v-tooltip="`Transfer`" v-if="hist.type === HISTORY_TYPES.Transfer" :token="hist.token" symbol="fal fa-paper-plane" />
+						<SymbolBall v-tooltip="`Action`" v-if="hist.type === HISTORY_TYPES.Action" symbol="fal fa-exclamation" />
 					</figure>
 
 
 
 
+					<!------- ACTION ------------>
+					<section class="info-group" style="flex:1.5;" v-if="hist.type === HISTORY_TYPES.Action">
+						<figure class="big-text">{{hist.action}}</figure>
+						<figure class="small-text" v-if="getActionAccount(hist)">{{getActionAccount(hist).network().name}}</figure>
+					</section>
+
 					<!------- EXCHANGE ------------>
 					<section class="info-group" style="flex:1.5;" v-if="hist.type === HISTORY_TYPES.Exchange">
 						<figure class="big-text">Converted {{hist.fromToken.symbol}} to {{hist.toToken.symbol}}</figure>
-						<figure class="small-text">{{formatNumber(hist.fromToken.amount)}} {{hist.fromToken.symbol}} to {{formatNumber(hist.toToken.amount) || ''}} {{hist.toToken.symbol}}</figure>
+						<figure class="small-text">{{formatNumber(parseFloat(hist.orderDetails.deposit).toFixed(hist.fromToken.decimals))}} {{hist.fromToken.symbol}} to {{formatNumber(parseFloat(hist.orderDetails.expected).toFixed(hist.toToken.decimals)) || ''}} {{hist.toToken.symbol}}</figure>
 					</section>
 
 					<!------- TRANSFER ------------>
@@ -51,10 +58,10 @@
 
 
 					<section class="actions">
-						<Button v-if="hist.type === HISTORY_TYPES.Exchange || hist.type === HISTORY_TYPES.Transfer"
+						<Button v-tooltip="`Redo`" v-if="hist.type === HISTORY_TYPES.Exchange || hist.type === HISTORY_TYPES.Transfer"
 						        icon="fas fa-sync-alt"
 						        @click.native="redo(hist)" />
-						<Button icon="fas fa-eye" @click.native="view(hist)" />
+						<Button v-tooltip="`View`" icon="fas fa-eye" @click.native="view(hist)" />
 					</section>
 				</section>
 
@@ -77,7 +84,7 @@
 </template>
 
 <script>
-	import {mapState} from "vuex";
+	import {mapActions, mapState} from "vuex";
 	import PriceService from "@walletpack/core/services/apis/PriceService";
 	import {blockchainName, BlockchainsArray} from "@walletpack/core/models/Blockchains";
 	import {HISTORY_TYPES} from "@walletpack/core/models/histories/History";
@@ -86,6 +93,7 @@
 	import SingularAccounts from "../../services/utility/SingularAccounts";
 	import PluginRepository from '@walletpack/core/plugins/PluginRepository'
 	import SymbolBall from "../reusable/SymbolBall";
+	import * as Actions from '@walletpack/core/store/constants';
 
 
 	export default {
@@ -109,7 +117,9 @@
 				return PriceService.fiatSymbol()
 			},
 			histories(){
-				return this.history;
+				return this.history.filter(x => !this.terms.length ? true : (() => {
+					return JSON.stringify(x).toLowerCase().indexOf(this.terms.toLowerCase()) > -1
+				})());
 			}
 		},
 		mounted(){
@@ -130,12 +140,26 @@
 			view(hist){
 				const blockchain = (() => {
 					if(hist.from) return hist.from.blockchain();
+					if(typeof hist.account === 'string') return hist.account.slice(24, -1).split(':')[0];
 					return hist.account.blockchain();
 				})();
 				const explorers = this.scatter.settings.explorers || PluginRepository.defaultExplorers();
 				const explorer = explorers[blockchain].parsed();
 				this.openInBrowser(explorer.transaction(hist.txid));
-			}
+			},
+			clearHistory(){
+				PopupService.push(Popups.confirmDeleteHistory(confirmed => {
+					if(!confirmed) return;
+					this[Actions.DELTA_HISTORY](null);
+					this.$router.push({name:this.RouteNames.Wallet, query:{type:'assets'}});
+				}))
+			},
+			getActionAccount(hist){
+				return this.scatter.keychain.accounts.find(x => x.unique() === hist.account);
+			},
+			...mapActions([
+				Actions.DELTA_HISTORY,
+			])
 		}
 
 	}

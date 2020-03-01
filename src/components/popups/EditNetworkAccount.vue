@@ -123,6 +123,7 @@
 	import AccountService from '@walletpack/core/services/blockchain/AccountService'
 	import PluginRepository from '@walletpack/core/plugins/PluginRepository'
 	import KeyService from "../../services/utility/KeyService";
+
 	let keyTimeout;
 	export default {
 		props:['popin', 'closer'],
@@ -133,18 +134,23 @@
 			importingHardware:false,
 			canUseHardware:false,
 			hardwareBlockchains:[],
+
 			addingNewKey:false,
+
 			terms:'',
 			privateKey:'',
 			loadingKey:false,
 			loadingAccounts:{},
+
 			accounts:{},
 		}},
 		created(){
 			this.keys.map(keypair => this.loadAccounts(keypair));
+
 			if(this.importing){
 				this.addingNewKey = true;
 			}
+
 			window.wallet.hardwareTypes()
 				.then(x => this.canUseHardware = x.length && x.some(y => y.blockchains.find(b => b === this.network.blockchain)))
 				.catch(() => this.canUseHardware = false);
@@ -176,13 +182,17 @@
 			async loadAccounts(keypair){
 				const loadedAccount = SingularAccounts.accounts([this.network])[0];
 				const accounts = await AccountService.getAccountsFor(keypair, this.network);
+
 				if(loadedAccount && loadedAccount.keypairUnique === keypair.unique() && !accounts.find(x => x.unique() === loadedAccount.unique())){
 					accounts.unshift(loadedAccount);
 				}
+
 				this.accounts[keypair.unique()] = accounts;
+
 				if(!SingularAccounts.accounts([this.network]).length && accounts.length){
 					SingularAccounts.setPredefinedAccount(this.network, accounts[0]);
 				}
+
 				this.$forceUpdate();
 			},
 			async importedHardware(keypair){
@@ -205,7 +215,9 @@
 				await KeyPairService.makePublicKeys(keypair);
 				keypair.setName();
 				await KeyPairService.saveKeyPair(keypair);
+
 				this.exportKey(keypair, true);
+
 				// We don't need to tap chain here, since eosio networks won't automatically add an account.
 				if(this.isAccountlessChain) {
 					const account = Account.fromJson({
@@ -214,8 +226,10 @@
 						publicKey: keypair.publicKeys.find(x => x.blockchain === this.network.blockchain).key
 					});
 					await AccountService.addAccount(account);
+
 					this.select(account, false);
 				}
+
 				await this.loadAccounts(keypair);
 				this.loadingKey = false;
 				this.addingNewKey = false;
@@ -231,6 +245,7 @@
 						if(window.wallet) r(await window.wallet.verifyPassword(password).catch(() => false));
 					}));
 				});
+
 				if(unlocked){
 					PopupService.push(Popups.exportPrivateKey(keypair))
 				}
@@ -244,6 +259,7 @@
 			},
 			refreshAccounts(keypair){
 				if(this.loadingAccounts[keypair.unique()]) return;
+
 				this.loadingAccounts[keypair.unique()] = true;
 				this.$forceUpdate();
 				setTimeout(() => {
@@ -269,14 +285,17 @@
 			async select(account, close = true){
 				const oldAccounts = this.network.accounts();
 				if(oldAccounts.length) await AccountService.removeAccounts(oldAccounts);
+
 				await AccountService.addAccount(account);
 				SingularAccounts.setPredefinedAccount(this.network, account);
 				BalanceService.loadBalancesFor(account);
 				if(close) this.closer(true);
 			},
 			async checkTextKey(){
+
 				const keypair = await KeyService.checkTextKey(this.privateKey, this.network.blockchain);
 				this.loadingKey = false;
+
 				if(keypair){
 					this.privateKey = null;
 					this.addingNewKey = false;
@@ -307,51 +326,64 @@
 
 <style lang="scss">
 	@import "../../styles/variables";
+
 	.edit-network-account {
 		max-width:500px;
 		width:calc(100% - 80px);
 		margin:0 auto;
+
 		.popup-content {
 			padding:0;
 		}
+
 		.no-keys {
 			padding:20px 0;
+
 			img {
 				width:180px;
 				height:auto;
 			}
+
 			p {
 				color:$grey;
 				font-size: $font-size-small;
 				font-weight: bold;
 			}
 		}
+
 		.new-key {
 			padding:20px;
+
 			button {
 				width:100%;
 			}
 		}
+
 		.head {
 			padding:20px;
 			text-align:left;
 			border-bottom:1px solid $borderlight;
+
 			.texts {
 				max-width:calc(100% - 80px);
+
 				.title {
 					font-size: $font-size-medium;
 					font-weight: bold;
 					margin:0;
 				}
+
 				.sub-title {
 					margin-top:0;
 					font-size: $font-size-small;
 				}
 			}
+
 			.action {
 				position:absolute;
 				top:20px;
 				right:20px;
+
 				.bubble {
 					width:40px;
 					height:40px;
@@ -363,46 +395,59 @@
 					align-items: center;
 					border-radius:50%;
 					cursor: pointer;
+
 					transition: transform 0.2s ease;
+
 					&:hover { transform:scale(1.1); }
 					&:active { transform:scale(0.9); }
+
 					&.active {
 						transform:rotateZ(45deg);
+
 						&:hover { transform:rotateZ(45deg) scale(1.1); }
 						&:active { transform:rotateZ(45deg) scale(0.9); }
 					}
 				}
 			}
 		}
+
 		.scroller {
 			padding-bottom:40px;
 			overflow-y:auto;
 			max-height:320px;
 		}
+
 		.search {
 			display:flex;
 			align-items: center;
 			padding:10px 20px;
 			border-bottom:1px solid $borderlight;
+
 			i {
 				margin-right:10px;
 				font-size: 11px;
 			}
+
 			input {
 				border:0;
 				outline:0;
 				flex:1;
 			}
+
 		}
+
 		.keys {
 			padding:20px;
+
 			.key {
 				text-align:left;
 				padding:10px;
 				border:3px solid $borderlight;
 				border-radius:4px;
+
 				.public-key {
 					margin-bottom:10px;
+
 					.key-text {
 						font-size: $font-size-tiny;
 						word-break: break-word;
@@ -412,7 +457,9 @@
 						border-bottom:1px solid $borderlight;
 						padding-bottom:10px;
 					}
+
 					.warning {
+
 						font-size: $font-size-tiny;
 						color:white;
 						background:$red;
@@ -422,20 +469,25 @@
 						display:table;
 					}
 				}
+
 				.accounts {
 					margin-top:20px;
+
 					button {
 						width:100%;
 						margin-top:5px;
 					}
 				}
+
 				.actions {
 					display:flex;
 					justify-content: flex-end;
+
 					button {
 						padding:10px;
 						height:auto;
 						margin-left:5px;
+
 						.icon {
 							font-size: 13px;
 						}
@@ -444,6 +496,7 @@
 			}
 		}
 	}
+
 	.blue-steel {
 		.edit-network-account {
 			.head {
@@ -453,9 +506,12 @@
 				border-bottom: 1px solid $borderdark;
 			}
 			.keys {
+
 				.key {
 					border: 3px solid $borderdark;
+
 					.public-key {
+
 						.key-text {
 							border-bottom:1px solid $borderdark;
 						}
@@ -464,4 +520,6 @@
 			}
 		}
 	}
+
+
 </style>

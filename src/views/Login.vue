@@ -1,18 +1,21 @@
 <template>
 	<section class="login">
-		<section class="beauty">
-			<img src="https://images.unsplash.com/photo-1456428746267-a1756408f782?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=1350&q=80" />
-		</section>
+		<!--<section class="beauty">-->
+			<!--<img src="https://images.unsplash.com/photo-1456428746267-a1756408f782?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=1350&q=80" />-->
+		<!--</section>-->
 
 		<section class="authentication">
 			<section>
-				<img class="logo" src="@/assets/scatter.svg" />
+				<img class="logo" src="static/assets/scatter.svg" />
 
 				<section class="inputs" v-if="ready && !working">
 					<section v-if="isNewScatter">
 						<Button class="big" primary="1" text="Create new Scatter" @click.native="login" />
 						<section class="login-with">
-							<span class="label">You can also load a</span><span class="option" @click="loadBackup">full backup file</span>&nbsp;<span class="label">that you have saved.</span>
+							<span class="label">
+								You can also load a<span class="option" @click="loadBackup">full backup file</span>
+								or just your<span class="option" @click="loadMnemonic">words</span>
+							</span>
 						</section>
 					</section>
 
@@ -54,6 +57,8 @@
 	import KeyPairService from '@walletpack/core/services/secure/KeyPairService'
 	import AccountService from '@walletpack/core/services/blockchain/AccountService'
 	import SingularAccounts from "../services/utility/SingularAccounts";
+	import KeyService from "../services/utility/KeyService";
+	import WalletHelpers from "../util/WalletHelpers";
 
 	let gauth;
 
@@ -69,6 +74,11 @@
 		mounted(){
 			typeof window.wallet === 'undefined' ? this.initAsBridge() : this.initAsWallet();
 
+		},
+		computed:{
+			...mapState([
+				'scatter'
+			])
 		},
 		methods:{
 			async initAsWallet(){
@@ -167,6 +177,28 @@
 				this.loginSuccess();
 			},
 
+			async loadMnemonic(){
+				this.working = true;
+				// Dummy key for easy testing. Never use to hold real tokens.
+				// invest version grape noodle blossom want moon move need indoor enrich sorry fluid detect skirt cruel install lucky unknown unhappy phrase urge benefit junior
+				PopupService.push(Popups.importMnemonic(mnemonicBuffer => {
+					if(!mnemonicBuffer) return this.working = false;
+					WalletHelpers.initializePlugins();
+					PopupService.push(Popups.showTerms(async accepted => {
+						if(!accepted) return this.working = false;
+						PopupService.push(Popups.getPassword(async password => {
+							if(!password) return this.working = false;
+							await this[UIActions.CREATE_SCATTER](password);
+							const clone = this.scatter.clone();
+							clone.onboarded = true;
+							await KeyService.restoreFromMnemonicBuffer(clone, mnemonicBuffer);
+							this[Actions.SET_SCATTER](clone);
+							this.loginSuccess();
+						}, true))
+					}))
+				}));
+			},
+
 			async loadBackup(){
 				const unrestore = () => {
 					this.working = false;
@@ -177,7 +209,6 @@
 				if(this.restoringBackup) return;
 				this.restoringBackup = true;
 
-				// TODO: fix for bridge
 				const possibleFile = await getFileLocation(['json', 'txt']);
 				if(!possibleFile) return unrestore();
 				const file = possibleFile[0];
@@ -198,6 +229,10 @@
 					if(typeof decrypted === 'object' && decrypted.hasOwnProperty('keychain')){
 						decrypted.keychain = await window.wallet.decrypt(decrypted.keychain);
 						decrypted.settings.backupLocation = '';
+						if(!decrypted.simple) {
+							decrypted.meta.version = '0.0.0';
+							decrypted.meta.lastVersion = '0.0.0';
+						}
 						this.working = false;
 						PopupService.push(Popups.showTerms(async accepted => {
 							if(!accepted) {
@@ -275,7 +310,6 @@
 					}
 				};
 
-				// TODO: Fix for bridge
 				window.wallet.storage.openFile(file).then(data => {
 					if(!data) {
 						unrestore();
