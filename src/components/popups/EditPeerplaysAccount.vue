@@ -262,7 +262,10 @@
 				let user = this.username;
 				let pass = this.password;
 
-
+				let auth = await KeyService.authPPY(user, pass);
+				if (!auth) {
+					return PopupService.push(Popups.snackbar('Account authentication failed.'));
+				}
 				let keypair = await KeyService.generatePPYKeys(user, pass);
 				if (!keypair) {
 					return PopupService.push(Popups.snackbar('Account authentication failed.'));

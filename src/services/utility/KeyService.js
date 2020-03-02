@@ -105,7 +105,13 @@ export default class KeyService {
 	}
 
 	static async generatePPYKeys(user, password) {
-		return await KeyPairService.generatePPYKeys(user, password);
+		const plugin = PluginRepository.plugin(Blockchains.PPY);
+		return await plugin.generateKeys(user, password);
+	}
+
+	static async authPPY(user, password) {
+		const plugin = PluginRepository.plugin(Blockchains.PPY);
+		return await plugin.authUser(user, password);
 	}
 
 
