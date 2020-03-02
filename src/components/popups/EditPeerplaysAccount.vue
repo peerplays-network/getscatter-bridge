@@ -273,7 +273,7 @@
 				}
 
 				//TO-DO: Validate the username
-				if () {
+				if (!this.register.username) {
 					return PopupService.push(Popups.snackbar('Must start with a letter and contain at least one dash, a number, or no vowels'));
 				}
 
