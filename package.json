@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "npm run check && yarn && cross-env NODE_ENV=production BABEL_ENV=prod vue-cli-service build && npm run zip",
-    "check":"node scripts/build-check",
+    "check": "node scripts/build-check",
     "zip": "node scripts/package",
     "start": "cross-env BABEL_ENV=prod vue-cli-service serve --port 8081",
     "build:watch": "npm run build -- --watch",
@@ -35,6 +35,7 @@
     "lz-string": "^1.4.4",
     "more-entropy": "^0.0.7",
     "qrcode": "^1.4.4",
+    "randomstring": "^1.1.5",
     "ridl-js": "^1.0.4",
     "typeface-poppins": "^0.0.72",
     "v-lazy-image": "^1.3.2",

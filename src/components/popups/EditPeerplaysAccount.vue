@@ -11,7 +11,14 @@
 					</figure>
 				</section>
 
-				<section v-if="!importPPY">
+				<section class="texts" v-if="createPPY">
+					<figure class="title">Register a new Peerplays Account</figure>
+					<figure class="sub-title">
+						Enter an account name and re-enter the provided password to create and import a new Peerplays account.
+					</figure>
+				</section>
+
+				<section v-if="!importPPY && !createPPY">
 					<section class="texts" v-if="!addingNewKey">
 						<figure class="title">Select account</figure>
 						<figure class="sub-title">
@@ -50,8 +57,7 @@
 			<section class="new-key" v-if="addingNewKey">
 					<section v-if="!importingHardware">
 						<Button text="Login to Import Peerplays Account" style="margin-bottom:5px;" primary="1" @click.native="toggleImportPPY" />
-						<Button text="Create New Peerplays Account" style="margin-bottom:5px;" primary="1" @click.native="generateKey" />
-
+						<Button text="Create New Peerplays Account" style="margin-bottom:5px;" primary="1" @click.native="toggleCreatePPY" />
 				<ImportHardware v-if="importingHardware" :blockchain="network.blockchain" v-on:imported="importedHardware" />
 			</section>
 
@@ -75,6 +81,14 @@
 				<Input :disabled="loadingKey" label="Password" :text="password" v-on:changed="x => password = x" style="margin-bottom:0;" />
 				<br>
 				<Button text="Login" style="margin-bottom:5px;" primary="1" @click.native="loginToImport" />
+			</section>
+
+			<section class="new-key" v-else-if="createPPY">
+				<Input :disabled="loadingKey" label="Account Name" :text="register.username" v-on:changed="x => register.username = x" style="margin-bottom:0;" />
+				<br>
+				<Input :disabled=true label="Password" :text=register.password v-on:changed="x => register.password = x" style="margin-bottom:0;" />
+				<br>
+				<Button text="Create" style="margin-bottom:5px;" primary="1" @click.native="registerUser" />
 			</section>
 
 			<section v-else-if="!addingNewKey">
@@ -144,6 +158,7 @@
 	import AccountService from '@walletpack/core/services/blockchain/AccountService'
 	import PluginRepository from '@walletpack/core/plugins/PluginRepository'
 	import KeyService from "../../services/utility/KeyService";
+	import RandomString from 'randomstring';
 
 	let keyTimeout;
 	export default {
@@ -157,13 +172,22 @@
 
 			addingNewKey:false,
 			importPPY: false,
+			createPPY: false,
 
 			terms:'',
 			privateKey:'',
 			username:'',
 			password:'',
+
 			loadingKey:false,
 			loadingAccounts:{},
+			register: {
+				username: '',
+				password: RandomString.generate({
+					length: 52,
+					charset: 'alphanumeric'
+				})
+			},
 
 			accounts:{},
 		}},
@@ -235,6 +259,26 @@
 				this.addingNewKey = false;
 			},
 
+			toggleCreatePPY() {
+				this.createPPY = !this.createPPY
+				this.importingHardware = false;
+				this.addingNewKey = false;
+			},
+
+			async registerUser() {
+				console.log(this.register.username);
+				console.log(this.register.password);
+				if (!this.username) {
+					return PopupService.push(Popups.snackbar('Invalid username.'));
+				}
+
+				//TO-DO: Validate the username
+				if () {
+					return PopupService.push(Popups.snackbar('Must start with a letter and contain at least one dash, a number, or no vowels'));
+				}
+
+			},
+
 			async generateKey(){
 				const keypair = Keypair.placeholder();
 				keypair.blockchains = [this.network.blockchain];
@@ -252,6 +296,10 @@
 					}));
 				}
 				this.exportKey(keypair, true);
+			},
+
+			async createAccount() {
+				return true;
 			},
 
 			async loginToImport() {
