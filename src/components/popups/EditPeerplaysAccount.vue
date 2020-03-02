@@ -112,7 +112,7 @@
 
 				<section v-else class="no-keys">
 
-					<img src="@/assets/identity.svg" />
+					<img src="static/assets/identity.svg" />
 					<p>You have no keys imported</p>
 				</section>
 			</section>
