@@ -114,5 +114,10 @@ export default class KeyService {
 		return await plugin.authUser(user, password);
 	}
 
+	static async registerPPY(user, password) {
+		const plugin = PluginRepository.plugin(Blockchains.PPY);
+		return await plugin.register(user, password);
+	}
+
 
 }

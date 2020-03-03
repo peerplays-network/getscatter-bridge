@@ -265,10 +265,36 @@
 				this.addingNewKey = false;
 			},
 
+			validateUsername(username) {
+				let validName = true;
+				const lowercaseRegex = /[a-z]/g;
+				const uppercaseRegex = /[A-Z]/g;
+				const digitOrLetterRegex = /[0-9a-z]/g;
+				const digitLetterHyphenRegex = /[^0-9a-zA-Z-]/g;
+
+				if (!lowercaseRegex.test(username[0])) {
+					validName = false;
+				}
+
+				if (uppercaseRegex.test(username)) {
+					validName = false;
+				}
+
+				if (!digitOrLetterRegex.test(username[username.length-1])) {
+					validName = false;
+				}
+
+				if (digitLetterHyphenRegex.test(username)) {
+					validName = false;
+				}
+
+				return validName;
+			},
+
 			async registerUser() {
-				console.log(this.register.username);
-				console.log(this.register.password);
-				if (!this.username) {
+				// console.log(this.register.username);
+				// console.log(this.register.password);
+				if (!this.register.username) {
 					return PopupService.push(Popups.snackbar('Invalid username.'));
 				}
 
@@ -277,9 +303,23 @@
 					return PopupService.push(Popups.snackbar('Must start with a letter and contain at least one dash, a number, or no vowels'));
 				}
 
+				const validUser = this.validateUsername(this.register.username);
+				if (!validUser) {
+					return PopupService.push(Popups.snackbar('Must start with a letter and contain at least one dash, a number, or no vowels'));
+				}
+
+				let result = await KeyService.registerPPY(this.register.username, this.register.password);
+
+				console.log('result', result);
+
+				// Save KeyPair
+
+				// Close
+				// this.toggleCreatePPY();
+
 			},
 
-			async generateKey(){
+			async generateKey() {
 				const keypair = Keypair.placeholder();
 				keypair.blockchains = [this.network.blockchain];
 				await KeyPairService.generateKeyPair(keypair);
@@ -296,10 +336,6 @@
 					}));
 				}
 				this.exportKey(keypair, true);
-			},
-
-			async createAccount() {
-				return true;
 			},
 
 			async loginToImport() {
