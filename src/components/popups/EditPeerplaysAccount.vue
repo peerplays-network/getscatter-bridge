@@ -88,7 +88,7 @@
 				<br>
 				<Input :disabled=true label="Password" :text=register.password v-on:changed="x => register.password = x" style="margin-bottom:0;" />
 				<br>
-				<Button text="Create" style="margin-bottom:5px;" primary="1" @click.native="registerUser" />
+				<Button :disabled="processingRegister" text="Create" style="margin-bottom:5px;" primary="1" @click.native="registerUser" />
 			</section>
 
 			<section v-else-if="!addingNewKey">
@@ -180,6 +180,7 @@
 			password:'',
 
 			loadingKey:false,
+			processingRegister: false,
 			loadingAccounts:{},
 			register: {
 				username: '',
@@ -226,6 +227,8 @@
 			async loadAccounts(keypair){
 				const loadedAccount = SingularAccounts.accounts([this.network])[0];
 				const accounts = await AccountService.getAccountsFor(keypair, this.network);
+				// console.log('loadedAccount', loadedAccount);
+				// console.log('loadedAccounts', accounts);
 
 				if(loadedAccount && !accounts.find(x => x.unique() === loadedAccount.unique())){
 					accounts.unshift(loadedAccount);
@@ -292,30 +295,44 @@
 			},
 
 			async registerUser() {
-				// console.log(this.register.username);
-				// console.log(this.register.password);
-				if (!this.register.username) {
-					return PopupService.push(Popups.snackbar('Invalid username.'));
+				this.processingRegister = true;
+				if (!this.register.username || this.register.username.length < 3 || this.register.username.length > 52) {
+					this.processingRegister = false;
+					return PopupService.push(Popups.snackbar('Account name must be between 3 and 52 characters.'));
 				}
 
-				//TO-DO: Validate the username
 				if (!this.register.username) {
+					this.processingRegister = false;
 					return PopupService.push(Popups.snackbar('Must start with a letter and contain at least one dash, a number, or no vowels'));
 				}
 
 				const validUser = this.validateUsername(this.register.username);
 				if (!validUser) {
+					this.processingRegister = false;
 					return PopupService.push(Popups.snackbar('Must start with a letter and contain at least one dash, a number, or no vowels'));
 				}
 
 				let result = await KeyService.registerPPY(this.register.username, this.register.password);
 
-				console.log('result', result);
+				if (result.error) {
+					this.processingRegister = false;
+					return PopupService.push(Popups.snackbar('The account already exists.'));
+				}
 
 				// Save KeyPair
+				let keypair = await KeyService.generatePPYKeys(this.register.username, this.register.password);
+				if (!keypair) {
+					this.processingRegister = false;
+					return PopupService.push(Popups.snackbar('Account authentication failed.'));
+				}
+				keypair.setName();
+				keypair.username = this.register.username;
+				await KeyPairService.saveKeyPair(keypair);
+				await this.loadAccounts(keypair);
+				this.processingRegister = false;
 
 				// Close
-				// this.toggleCreatePPY();
+				this.toggleCreatePPY();
 
 			},
 
@@ -395,15 +412,10 @@
 			},
 			keyAccounts(keypair){
 				if(!this.accounts[keypair.unique()]) return [];
-				return this.accounts[keypair.unique()]
-				// return keypair.accounts(true)
-				// .filter(x => x.network().unique() === this.network.unique())
-				.filter(x => {
-					return x.sendable().toLowerCase().trim().indexOf(this.terms.toLowerCase().trim()) > -1;
-				}).sort((a,b) => b.authority === 'active' ? 1 : 0).reduce((acc, account) => {
-					if(!acc.find(x => x.sendable() === account.sendable())) acc.push(account);
-					return acc;
-				}, []);
+
+				return this.accounts[keypair.unique()].filter(x => {
+					if (x.name === keypair.username) return x
+				});
 			},
 			addHardware(){
 				// TODO: Need to add hardware importing
@@ -417,76 +429,11 @@
 				BalanceService.loadBalancesFor(account);
 				this.closer(true);
 			},
-			async checkTextKey(){
-
-				// if (this.privateKey === 'ppy') {
-				// 	let user = 'miigunner69';
-				// 	let pass = 'QZvbzqGng8BMYzcFW4O5TpqJEwOXmy72O0ceLVwUqeuZ4grRnVmI';
-				// 	let keypair = await KeyService.generatePPYKeys(user, pass);
-				// 	let x = keypair.privateKey;
-				// 	keypair.setName();
-				// 	keypair.username = 'miigunner69';
-				// 	await KeyPairService.saveKeyPair(keypair);
-				// 	await this.loadAccounts(keypair);
-				// }
-
-				const keypair = await KeyService.checkTextKey(this.privateKey, this.network.blockchain);
-				this.loadingKey = false;
-
-				if(keypair){
-					this.privateKey = null;
-					this.addingNewKey = false;
-					await KeyPairService.saveKeyPair(keypair);
-					await this.loadAccounts(keypair);
-				}
-
-				// this.error = null;
-				// if(!this.privateKey || !this.privateKey.trim().length) return;
-				// const key = this.privateKey.trim().replace(/\W/g, '').replace('0x', '');
-				// const keypair = Keypair.placeholder();
-				// keypair.privateKey = key;
-				// if(!KeyPairService.isValidPrivateKey(keypair)) return;
-				//
-				//
-				// // Buffer conversion
-				// await KeyPairService.convertHexPrivateToBuffer(keypair);
-				//
-				// const blockchains = KeyPairService.getImportedKeyBlockchains(key);
-				// if(!blockchains.includes(this.network.blockchain)){
-				// 	this.loadingKey = false;
-				// 	return PopupService.push(Popups.snackbar('This key does not match this network.'))
-				// }
-				//
-				// keypair.blockchains = [this.network.blockchain];
-				// await KeyPairService.makePublicKeys(keypair);
-				// if(!keypair.publicKeys.find(x => x.blockchain === this.network.blockchain)) {
-				// 	this.loadingKey = false;
-				// 	return PopupService.push(Popups.snackbar('Error generating public keys.'));
-				// }
-				// keypair.setName();
-				//
-				// if(keypair.isUnique()) {
-				// 	await KeyPairService.saveKeyPair(keypair);
-				// 	await this.loadAccounts(keypair);
-				// }
-				//
-				// this.privateKey = null;
-				// this.loadingKey = false;
-				// this.addingNewKey = false;
-			},
 			...mapActions([
 				Actions.SET_BALANCES,
 				Actions.REMOVE_BALANCES,
 			])
 		},
-		watch:{
-			['privateKey'](){
-				clearTimeout(keyTimeout);
-				keyTimeout = setTimeout(() => {
-					this.checkTextKey();
-				}, 500);
-			},
-		}
 	}
 </script>
 
