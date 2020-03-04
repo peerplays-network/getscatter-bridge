@@ -267,47 +267,23 @@
 			},
 
 			validateUsername(username) {
-				let validName = true;
-				const lowercaseRegex = /[a-z]/g;
-				const uppercaseRegex = /[A-Z]/g;
-				const digitOrLetterRegex = /[0-9a-z]/g;
-				const digitLetterHyphenRegex = /[^0-9a-zA-Z-]/g;
-
-				if (!lowercaseRegex.test(username[0])) {
-					validName = false;
+				let err = PluginRepository.plugin(this.network.blockchain).isAccountNameError(username);
+				if (err) {
+					PopupService.push(Popups.snackbar(err));
+					return false;
 				}
 
-				if (uppercaseRegex.test(username)) {
-					validName = false;
-				}
-
-				if (!digitOrLetterRegex.test(username[username.length-1])) {
-					validName = false;
-				}
-
-				if (digitLetterHyphenRegex.test(username)) {
-					validName = false;
-				}
-
-				return validName;
+				return true;
 			},
 
 			async registerUser() {
 				this.processingRegister = true;
-				if (!this.register.username || this.register.username.length < 3 || this.register.username.length > 52) {
-					this.processingRegister = false;
-					return PopupService.push(Popups.snackbar('Account name must be between 3 and 52 characters.'));
-				}
-
-				if (!this.register.username) {
-					this.processingRegister = false;
-					return PopupService.push(Popups.snackbar('Must start with a letter and contain at least one dash, a number, or no vowels'));
-				}
-
+				
+				// Validate the username using the peerplaysjs-lib.
 				const validUser = this.validateUsername(this.register.username);
 				if (!validUser) {
 					this.processingRegister = false;
-					return PopupService.push(Popups.snackbar('Must start with a letter and contain at least one dash, a number, or no vowels'));
+					return;
 				}
 
 				let result = await KeyService.registerPPY(this.register.username, this.register.password);
