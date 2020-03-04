@@ -84,7 +84,7 @@
 			</section>
 
 			<section class="new-key" v-else-if="createPPY">
-				<Input :disabled="processingRegister" label="Account Name" :text="register.username" v-on:changed="x => register.username = x" style="margin-bottom:0;" />
+				<Input :disabled="processingRegister" label="Account Name" :text="register.username" v-on:changed="x => register.username = x.toLowerCase()" style="margin-bottom:0;" />
 				<br>
 				<span style="display:flex; align-items:flex-end">
 				<Input :disabled=true v-model="register.password" label="Password" :text=register.password style="margin-bottom:0;" />
