@@ -87,11 +87,21 @@
 				<Input :disabled="processingRegister" label="Account Name" :text="register.username" v-on:changed="x => register.username = x" style="margin-bottom:0;" />
 				<br>
 				<span style="display:flex; align-items:flex-end">
-				<Input :disabled=true label="Password" :text=register.password v-on:changed="x => register.password = x" style="margin-bottom:0;" />
+				<Input :disabled=true v-model="register.password" label="Password" :text=register.password style="margin-bottom:0;" />
 				<Button text="COPY" style="width:16%" primary="2" @click.native="copyToClipboard" />
 				</span>
 				<br>
 				<Input :disabled="processingRegister" label="Re-enter Password" :text=register.verifyPassword v-on:changed="x => register.verifyPassword = x" style="margin-bottom:0;" />
+				<br>
+				<section class="texts">
+					<figure class="warning">IF YOU LOSE YOUR PEERPLAYS PASSWORD AND ACCESS TO YOUR SCATTER WALLET, YOU WILL LOSE ALL OF YOUR FUNDS!</figure>
+					<br>
+					<figure class="sub-warning">
+					To download a text file of your Peerplays password, click the button:
+					</figure>
+				</section>
+				<br>
+				<Button text="Download Recovery File" style="margin-bottom:5px;" primary="1" @click.native="downloadRecoveryFile" />
 				<br>
 				<Button :disabled="processingRegister" text="Create" style="margin-bottom:5px;" primary="1" @click.native="registerUser" />
 			</section>
@@ -116,10 +126,10 @@
 
 								<section class="accounts">
 									<Button @click.native="select(account)"
-									        :key="account.unique()"
-									        v-for="account in keyAccounts(key)"
-									        :text="isAccountlessChain ? 'Use this address' : account.sendable()"
-									        :primary="isCurrentlySelected(account)"
+											:key="account.unique()"
+											v-for="account in keyAccounts(key)"
+											:text="isAccountlessChain ? 'Use this address' : account.sendable()"
+											:primary="isCurrentlySelected(account)"
 									/>
 								</section>
 							</section>
@@ -165,6 +175,8 @@
 	import KeyService from "../../services/utility/KeyService";
 	import RandomString from 'randomstring';
 	import copy from 'copy-to-clipboard';
+	import FileSaver from "file-saver"
+
 
 	let keyTimeout;
 	export default {
@@ -288,10 +300,22 @@
 				PopupService.push(Popups.snackbar('Copied!'));
 			},
 
+			downloadRecoveryFile() {
+
+				let blob = new Blob([this.register.password], {
+				type: "text/plain;charset=utf-8"
+				});
+				FileSaver(blob, "account-recovery-password.txt")
+			},
 
 			async registerUser() {
+				// Ensure the password has been re-entered.
+				if (this.register.password !== this.register.verifyPassword) {
+					return PopupService.push(Popups.snackbar('The passwords do not match.'));
+				}
+
 				this.processingRegister = true;
-				
+
 				// Validate the username using the peerplaysjs-lib.
 				const validUser = this.validateUsername(this.register.username);
 				if (!validUser) {
@@ -457,6 +481,18 @@
 			button {
 				width:100%;
 			}
+		}
+
+		.warning {
+			font-size: $font-size-medium;
+			font-weight: bold;
+			margin:0;
+		}
+
+		.sub-warning {
+			font-size: $font-size-small;
+			font-weight: bold;
+			margin:0;
 		}
 
 		.head {

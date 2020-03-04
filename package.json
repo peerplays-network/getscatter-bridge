@@ -31,6 +31,7 @@
     "core-js": "^2.6.5",
     "device-uuid": "^1.0.4",
     "dotenv": "^8.0.0",
+    "file-saver": "^2.0.2",
     "isomorphic-ws": "^4.0.1",
     "json-formatter-js": "^2.2.1",
     "lz-string": "^1.4.4",
