@@ -227,8 +227,6 @@
 			async loadAccounts(keypair){
 				const loadedAccount = SingularAccounts.accounts([this.network])[0];
 				const accounts = await AccountService.getAccountsFor(keypair, this.network);
-				// console.log('loadedAccount', loadedAccount);
-				// console.log('loadedAccounts', accounts);
 
 				if(loadedAccount && !accounts.find(x => x.unique() === loadedAccount.unique())){
 					accounts.unshift(loadedAccount);
