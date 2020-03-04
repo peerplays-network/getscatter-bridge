@@ -84,9 +84,14 @@
 			</section>
 
 			<section class="new-key" v-else-if="createPPY">
-				<Input :disabled="loadingKey" label="Account Name" :text="register.username" v-on:changed="x => register.username = x" style="margin-bottom:0;" />
+				<Input :disabled="processingRegister" label="Account Name" :text="register.username" v-on:changed="x => register.username = x" style="margin-bottom:0;" />
 				<br>
+				<span style="display:flex; align-items:flex-end">
 				<Input :disabled=true label="Password" :text=register.password v-on:changed="x => register.password = x" style="margin-bottom:0;" />
+				<Button text="COPY" style="width:16%" primary="2" @click.native="copyToClipboard" />
+				</span>
+				<br>
+				<Input :disabled="processingRegister" label="Re-enter Password" :text=register.verifyPassword v-on:changed="x => register.verifyPassword = x" style="margin-bottom:0;" />
 				<br>
 				<Button :disabled="processingRegister" text="Create" style="margin-bottom:5px;" primary="1" @click.native="registerUser" />
 			</section>
@@ -159,6 +164,7 @@
 	import PluginRepository from '@walletpack/core/plugins/PluginRepository'
 	import KeyService from "../../services/utility/KeyService";
 	import RandomString from 'randomstring';
+	import copy from 'copy-to-clipboard';
 
 	let keyTimeout;
 	export default {
@@ -187,7 +193,8 @@
 				password: RandomString.generate({
 					length: 52,
 					charset: 'alphanumeric'
-				})
+				}),
+				verifyPassword: ''
 			},
 
 			accounts:{},
@@ -275,6 +282,12 @@
 
 				return true;
 			},
+
+			copyToClipboard() {
+				copy(this.register.password);
+				PopupService.push(Popups.snackbar('Copied!'));
+			},
+
 
 			async registerUser() {
 				this.processingRegister = true;
