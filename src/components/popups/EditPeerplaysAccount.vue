@@ -11,7 +11,14 @@
 					</figure>
 				</section>
 
-				<section v-if="!importPPY">
+				<section class="texts" v-if="createPPY">
+					<figure class="title">Register a new Peerplays Account</figure>
+					<figure class="sub-title">
+						Enter an account name and re-enter the provided password to create and import a new Peerplays account.
+					</figure>
+				</section>
+
+				<section v-if="!importPPY && !createPPY">
 					<section class="texts" v-if="!addingNewKey">
 						<figure class="title">Select account</figure>
 						<figure class="sub-title">
@@ -50,8 +57,7 @@
 			<section class="new-key" v-if="addingNewKey">
 					<section v-if="!importingHardware">
 						<Button text="Login to Import Peerplays Account" style="margin-bottom:5px;" primary="1" @click.native="toggleImportPPY" />
-						<Button text="Create New Peerplays Account" style="margin-bottom:5px;" primary="1" @click.native="generateKey" />
-
+						<Button text="Create New Peerplays Account" style="margin-bottom:5px;" primary="1" @click.native="toggleCreatePPY" />
 				<ImportHardware v-if="importingHardware" :blockchain="network.blockchain" v-on:imported="importedHardware" />
 			</section>
 
@@ -70,11 +76,34 @@
 			</section>
 
 			<section class="new-key" v-if="importPPY">
-				<Input :disabled="loadingKey" label="Account Name" :text="username" v-on:changed="x => username = x" style="margin-bottom:0;" />
+				<Input :disabled="loadingKey" label="Account Name" :text="login.username" v-on:changed="x => login.username = x" style="margin-bottom:0;" />
 				<br>
-				<Input :disabled="loadingKey" label="Password" :text="password" v-on:changed="x => password = x" style="margin-bottom:0;" />
+				<Input :disabled="loadingKey" label="Password" :text="login.password" v-on:changed="x => login.password = x" style="margin-bottom:0;" />
 				<br>
 				<Button text="Login" style="margin-bottom:5px;" primary="1" @click.native="loginToImport" />
+			</section>
+
+			<section class="new-key" v-else-if="createPPY">
+				<Input :disabled="processingRegister" label="Account Name" :text="register.username" v-on:changed="x => register.username = x.toLowerCase()" style="margin-bottom:0;" />
+				<br>
+				<span style="display:flex; align-items:flex-end">
+				<Input :disabled=true v-model="register.password" label="Password" :text=register.password style="margin-bottom:0;" />
+				<Button text="COPY" style="width:16%" primary="2" @click.native="copyToClipboard" />
+				</span>
+				<br>
+				<Input :disabled="processingRegister" label="Re-enter Password" :text=register.verifyPassword v-on:changed="x => register.verifyPassword = x" style="margin-bottom:0;" />
+				<br>
+				<section class="texts">
+					<figure class="warning">IF YOU LOSE YOUR PEERPLAYS PASSWORD AND ACCESS TO YOUR SCATTER WALLET, YOU WILL LOSE ALL OF YOUR FUNDS!</figure>
+					<br>
+					<figure class="sub-warning">
+					To download a text file of your Peerplays password, click the button:
+					</figure>
+				</section>
+				<br>
+				<Button text="Download Recovery File" style="margin-bottom:5px;" primary="1" @click.native="downloadRecoveryFile" />
+				<br>
+				<Button :disabled="processingRegister" text="Create" style="margin-bottom:5px;" primary="1" @click.native="registerUser" />
 			</section>
 
 			<section v-else-if="!addingNewKey">
@@ -97,10 +126,10 @@
 
 								<section class="accounts">
 									<Button @click.native="select(account)"
-									        :key="account.unique()"
-									        v-for="account in keyAccounts(key)"
-									        :text="isAccountlessChain ? 'Use this address' : account.sendable()"
-									        :primary="isCurrentlySelected(account)"
+											:key="account.unique()"
+											v-for="account in keyAccounts(key)"
+											:text="isAccountlessChain ? 'Use this address' : account.sendable()"
+											:primary="isCurrentlySelected(account)"
 									/>
 								</section>
 							</section>
@@ -144,26 +173,42 @@
 	import AccountService from '@walletpack/core/services/blockchain/AccountService'
 	import PluginRepository from '@walletpack/core/plugins/PluginRepository'
 	import KeyService from "../../services/utility/KeyService";
+	import RandomString from 'randomstring';
+	import copy from 'copy-to-clipboard';
+	import FileSaver from "file-saver"
 
-	let keyTimeout;
 	export default {
 		props:['popin', 'closer'],
 		components:{
 			ImportHardware:() => import('./importable/ImportHardware'),
 		},
+
 		data(){return {
 			importingHardware:false,
 			canUseHardware:false,
 
 			addingNewKey:false,
 			importPPY: false,
+			createPPY: false,
 
 			terms:'',
 			privateKey:'',
-			username:'',
-			password:'',
+
 			loadingKey:false,
+			processingRegister: false,
 			loadingAccounts:{},
+			login: {
+				username:'',
+				password:'',
+			},
+			register: {
+				username: '',
+				password: RandomString.generate({
+					length: 52,
+					charset: 'alphanumeric'
+				}),
+				verifyPassword: ''
+			},
 
 			accounts:{},
 		}},
@@ -233,9 +278,97 @@
 				this.importPPY = !this.importPPY;
 				this.importingHardware = false;
 				this.addingNewKey = false;
+				this.clearLoginData();
 			},
 
-			async generateKey(){
+			toggleCreatePPY() {
+				this.createPPY = !this.createPPY
+				this.importingHardware = false;
+				this.addingNewKey = false;
+				this.clearRegisterData();
+			},
+
+			validateUsername(username) {
+				let err = PluginRepository.plugin(this.network.blockchain).isAccountNameError(username);
+				if (err) {
+					PopupService.push(Popups.snackbar(err));
+					return false;
+				}
+
+				return true;
+			},
+
+			copyToClipboard() {
+				copy(this.register.password);
+				PopupService.push(Popups.snackbar('Copied!'));
+			},
+
+			downloadRecoveryFile() {
+
+				let blob = new Blob([this.register.password], {
+				type: "text/plain;charset=utf-8"
+				});
+				FileSaver(blob, "account-recovery-password.txt")
+			},
+
+			async registerUser() {
+				// Ensure the password has been re-entered.
+				if (this.register.password !== this.register.verifyPassword) {
+					return PopupService.push(Popups.snackbar('The passwords do not match.'));
+				}
+
+				this.processingRegister = true;
+
+				// Validate the username using the peerplaysjs-lib.
+				const validUser = this.validateUsername(this.register.username);
+				if (!validUser) {
+					this.processingRegister = false;
+					return;
+				}
+
+				let result = await KeyService.registerPPY(this.register.username, this.register.password);
+
+				if (result.error) {
+					this.processingRegister = false;
+					return PopupService.push(Popups.snackbar('The account already exists.'));
+				}
+
+				// Save KeyPair
+				let keypair = await KeyService.generatePPYKeys(this.register.username, this.register.password);
+				if (!keypair) {
+					this.processingRegister = false;
+					return PopupService.push(Popups.snackbar('Account authentication failed.'));
+				}
+				keypair.setName();
+				keypair.username = this.register.username;
+				await KeyPairService.saveKeyPair(keypair);
+				await this.loadAccounts(keypair);
+				this.processingRegister = false;
+
+				// Close
+				this.toggleCreatePPY();
+
+			},
+
+			clearLoginData() {
+			this.login = {
+				username:'',
+				password:'',
+			};
+			},
+
+			clearRegisterData() {
+				this.register = {
+				username: '',
+				password: RandomString.generate({
+					length: 52,
+					charset: 'alphanumeric'
+				}),
+				verifyPassword: ''
+			};
+			},
+
+			async generateKey() {
 				const keypair = Keypair.placeholder();
 				keypair.blockchains = [this.network.blockchain];
 				await KeyPairService.generateKeyPair(keypair);
@@ -256,11 +389,11 @@
 
 			async loginToImport() {
 				let MAX_PASSWORD_CHARACTERS = 22;
-				if (!this.username || !this.password || this.password.length < 22) {
+				if (!this.login.username || !this.login.password || this.login.password.length < 22) {
 					return PopupService.push(Popups.snackbar('Invalid username or password.'));
 				}
-				let user = this.username;
-				let pass = this.password;
+				let user = this.login.username;
+				let pass = this.login.password;
 
 				let auth = await KeyService.authPPY(user, pass);
 				if (!auth) {
@@ -311,15 +444,10 @@
 			},
 			keyAccounts(keypair){
 				if(!this.accounts[keypair.unique()]) return [];
-				return this.accounts[keypair.unique()]
-				// return keypair.accounts(true)
-				// .filter(x => x.network().unique() === this.network.unique())
-				.filter(x => {
-					return x.sendable().toLowerCase().trim().indexOf(this.terms.toLowerCase().trim()) > -1;
-				}).sort((a,b) => b.authority === 'active' ? 1 : 0).reduce((acc, account) => {
-					if(!acc.find(x => x.sendable() === account.sendable())) acc.push(account);
-					return acc;
-				}, []);
+
+				return this.accounts[keypair.unique()].filter(x => {
+					if (x.name === keypair.username) return x
+				});
 			},
 			addHardware(){
 				// TODO: Need to add hardware importing
@@ -333,76 +461,11 @@
 				BalanceService.loadBalancesFor(account);
 				this.closer(true);
 			},
-			async checkTextKey(){
-
-				// if (this.privateKey === 'ppy') {
-				// 	let user = 'miigunner69';
-				// 	let pass = 'QZvbzqGng8BMYzcFW4O5TpqJEwOXmy72O0ceLVwUqeuZ4grRnVmI';
-				// 	let keypair = await KeyService.generatePPYKeys(user, pass);
-				// 	let x = keypair.privateKey;
-				// 	keypair.setName();
-				// 	keypair.username = 'miigunner69';
-				// 	await KeyPairService.saveKeyPair(keypair);
-				// 	await this.loadAccounts(keypair);
-				// }
-
-				const keypair = await KeyService.checkTextKey(this.privateKey, this.network.blockchain);
-				this.loadingKey = false;
-
-				if(keypair){
-					this.privateKey = null;
-					this.addingNewKey = false;
-					await KeyPairService.saveKeyPair(keypair);
-					await this.loadAccounts(keypair);
-				}
-
-				// this.error = null;
-				// if(!this.privateKey || !this.privateKey.trim().length) return;
-				// const key = this.privateKey.trim().replace(/\W/g, '').replace('0x', '');
-				// const keypair = Keypair.placeholder();
-				// keypair.privateKey = key;
-				// if(!KeyPairService.isValidPrivateKey(keypair)) return;
-				//
-				//
-				// // Buffer conversion
-				// await KeyPairService.convertHexPrivateToBuffer(keypair);
-				//
-				// const blockchains = KeyPairService.getImportedKeyBlockchains(key);
-				// if(!blockchains.includes(this.network.blockchain)){
-				// 	this.loadingKey = false;
-				// 	return PopupService.push(Popups.snackbar('This key does not match this network.'))
-				// }
-				//
-				// keypair.blockchains = [this.network.blockchain];
-				// await KeyPairService.makePublicKeys(keypair);
-				// if(!keypair.publicKeys.find(x => x.blockchain === this.network.blockchain)) {
-				// 	this.loadingKey = false;
-				// 	return PopupService.push(Popups.snackbar('Error generating public keys.'));
-				// }
-				// keypair.setName();
-				//
-				// if(keypair.isUnique()) {
-				// 	await KeyPairService.saveKeyPair(keypair);
-				// 	await this.loadAccounts(keypair);
-				// }
-				//
-				// this.privateKey = null;
-				// this.loadingKey = false;
-				// this.addingNewKey = false;
-			},
 			...mapActions([
 				Actions.SET_BALANCES,
 				Actions.REMOVE_BALANCES,
 			])
 		},
-		watch:{
-			['privateKey'](){
-				clearTimeout(keyTimeout);
-				keyTimeout = setTimeout(() => {
-					this.checkTextKey();
-				}, 500);
-			},
-		}
 	}
 </script>
 
@@ -439,6 +502,18 @@
 			button {
 				width:100%;
 			}
+		}
+
+		.warning {
+			font-size: $font-size-medium;
+			font-weight: bold;
+			margin:0;
+		}
+
+		.sub-warning {
+			font-size: $font-size-small;
+			font-weight: bold;
+			margin:0;
 		}
 
 		.head {
