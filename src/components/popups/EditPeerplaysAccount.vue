@@ -76,9 +76,9 @@
 			</section>
 
 			<section class="new-key" v-if="importPPY">
-				<Input :disabled="loadingKey" label="Account Name" :text="username" v-on:changed="x => username = x" style="margin-bottom:0;" />
+				<Input :disabled="loadingKey" label="Account Name" :text="login.username" v-on:changed="x => login.username = x" style="margin-bottom:0;" />
 				<br>
-				<Input :disabled="loadingKey" label="Password" :text="password" v-on:changed="x => password = x" style="margin-bottom:0;" />
+				<Input :disabled="loadingKey" label="Password" :text="login.password" v-on:changed="x => login.password = x" style="margin-bottom:0;" />
 				<br>
 				<Button text="Login" style="margin-bottom:5px;" primary="1" @click.native="loginToImport" />
 			</section>
@@ -177,13 +177,12 @@
 	import copy from 'copy-to-clipboard';
 	import FileSaver from "file-saver"
 
-
-	let keyTimeout;
 	export default {
 		props:['popin', 'closer'],
 		components:{
 			ImportHardware:() => import('./importable/ImportHardware'),
 		},
+
 		data(){return {
 			importingHardware:false,
 			canUseHardware:false,
@@ -194,12 +193,14 @@
 
 			terms:'',
 			privateKey:'',
-			username:'',
-			password:'',
 
 			loadingKey:false,
 			processingRegister: false,
 			loadingAccounts:{},
+			login: {
+				username:'',
+				password:'',
+			},
 			register: {
 				username: '',
 				password: RandomString.generate({
@@ -277,12 +278,14 @@
 				this.importPPY = !this.importPPY;
 				this.importingHardware = false;
 				this.addingNewKey = false;
+				this.clearLoginData();
 			},
 
 			toggleCreatePPY() {
 				this.createPPY = !this.createPPY
 				this.importingHardware = false;
 				this.addingNewKey = false;
+				this.clearRegisterData();
 			},
 
 			validateUsername(username) {
@@ -347,6 +350,24 @@
 
 			},
 
+			clearLoginData() {
+			this.login = {
+				username:'',
+				password:'',
+			};
+			},
+
+			clearRegisterData() {
+				this.register = {
+				username: '',
+				password: RandomString.generate({
+					length: 52,
+					charset: 'alphanumeric'
+				}),
+				verifyPassword: ''
+			};
+			},
+
 			async generateKey() {
 				const keypair = Keypair.placeholder();
 				keypair.blockchains = [this.network.blockchain];
@@ -368,11 +389,11 @@
 
 			async loginToImport() {
 				let MAX_PASSWORD_CHARACTERS = 22;
-				if (!this.username || !this.password || this.password.length < 22) {
+				if (!this.login.username || !this.login.password || this.login.password.length < 22) {
 					return PopupService.push(Popups.snackbar('Invalid username or password.'));
 				}
-				let user = this.username;
-				let pass = this.password;
+				let user = this.login.username;
+				let pass = this.login.password;
 
 				let auth = await KeyService.authPPY(user, pass);
 				if (!auth) {
