@@ -73,7 +73,7 @@ export default class KeyService {
 		const mnemonic = KeyService.getMnemonic(baseKey.privateKey);
 
 		const keys = BlockchainsArray.reduce((acc, blockchain) => {
-			if(blockchain.value === Blockchains.EOSIO) acc[blockchain.value] = baseKey;
+			if(blockchain.value === Blockchains.EOSIO || blockchain.value === Blockchains.PPY) acc[blockchain.value] = baseKey;
 			// These will all also inherit the `base` modifier signifying they are base keys.
 			// They will all have the same private key buffer.
 			else acc[blockchain.value] = KeyPairService.convertKey(baseKey, blockchain.value);
