@@ -118,10 +118,10 @@
 
 			async send(){
 				const isSystemToken = this.token.network().systemToken().uniqueWithChain(false) === this.token.uniqueWithChain(false);
-				if(isSystemToken && parseFloat(this.token.totalBalance().amount) < parseFloat(this.token.amount)){
-					if(this.featureFlags.buy) return this.buyWithCard();
-					// else return PopupService.push(Popups.snackbar("You don't have enough tokens to send."));
-				}
+				// if(isSystemToken && parseFloat(this.token.totalBalance().amount) < parseFloat(this.token.amount)){
+				// 	if(this.featureFlags.buy) return this.buyWithCard();
+				// 	// else return PopupService.push(Popups.snackbar("You don't have enough tokens to send."));
+				// }
 
 				const reset = () => this.sending = false;
 
